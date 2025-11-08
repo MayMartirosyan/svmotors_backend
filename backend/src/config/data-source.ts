@@ -15,6 +15,6 @@ export const AppDataSource = new DataSource({
   entities: [__dirname + `/../entities/*.${isDev ? "ts" : 'js'}`],
   migrations: [__dirname + `/../migrations/*.${isDev ? "ts" : 'js'}`],
   subscribers: [__dirname + `/../subscribers/*.${isDev ? "ts" : 'js'}`],
-  synchronize: isDev,
+  synchronize: true,
   logging: isDev,
 });
