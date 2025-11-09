@@ -44,13 +44,13 @@ export class CategoryController {
 
   async createCategory(req: Request, res: Response) {
     try {
-      const { name, parentId } = req.body; // Добавляем parentId для связи
+      const { name, parentId } = req.body;
       const snakeCaseData: any = {
         name,
         category_image: getImagePath(req),
       };
       if (parentId) {
-        snakeCaseData.parent = { id: parseInt(parentId) }; // Указываем родителя
+        snakeCaseData.parent = { id: parseInt(parentId) };
       }
 
       const newCategory = await this.categoryService.createCategory(snakeCaseData);
@@ -64,7 +64,7 @@ export class CategoryController {
   async updateCategory(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const { name, parentId } = req.body; // Добавляем parentId
+      const { name, parentId } = req.body;
 
       const existingCategory: any = await getExistingEntity(
         this.categoryService,
@@ -75,7 +75,7 @@ export class CategoryController {
 
       const snakeCaseData: any = { name };
       if (parentId !== undefined) {
-        snakeCaseData.parent = parentId ? { id: parseInt(parentId) } : null; // Обновляем родителя
+        snakeCaseData.parent = parentId ? { id: parseInt(parentId) } : null;
       }
 
       const newImagePath = getImagePath(req);

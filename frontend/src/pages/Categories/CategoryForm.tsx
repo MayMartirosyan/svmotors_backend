@@ -36,7 +36,7 @@ const CategoryForm: React.FC = () => {
         setValue("name", data.name);
         setValue("parentId", data.parent?.id || null);
         if (data.categoryImage) {
-          setInitialImageUrl(`${BASE_URL}${data.categoryImage}`);
+          setInitialImageUrl(`${data.categoryImage}`);
         }
       } catch (err) {
         console.error(err);
@@ -115,7 +115,7 @@ const CategoryForm: React.FC = () => {
           />
 
           <Select
-            label="Родительская котегория"
+            label="Родительская категория"
             {...register("parentId")}
             options={parentCategories.map((cat) => ({
               value: cat.id,

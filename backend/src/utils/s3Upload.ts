@@ -4,6 +4,8 @@ import fs from "fs";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  forcePathStyle: false,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -13,7 +15,7 @@ const s3Client = new S3Client({
 export const uploadToS3Single = async (
   file: Express.Multer.File
 ): Promise<string> => {
-  const params: any = {
+  const params = {
     Bucket: process.env.S3_BUCKET_NAME,
     Key: `images/${Date.now()}-${file.filename}`,
     Body: fs.createReadStream(file.path),
@@ -22,13 +24,17 @@ export const uploadToS3Single = async (
 
   try {
     await s3Client.send(new PutObjectCommand(params));
-    const url = `https://${process.env.S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${params.Key}`;
+
+    const publicUrl = `${process.env.S3_WEBSITE_URL}/${params.Key}`;
+
     fs.unlinkSync(file.path);
-    return url;
+    return publicUrl;
+
   } catch (error) {
     throw new Error(`S3 upload error: ${(error as Error).message}`);
   }
 };
+
 
 export const uploadToS3Multiple = async (
   req: Request,

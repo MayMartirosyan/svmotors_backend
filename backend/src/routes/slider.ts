@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { SliderController } from "../controllers/SliderController";
-import { uploadAndConvertSingle } from "../utils/multerConfig";
+import { uploadAndConvertSingleWithS3 } from "../utils/multerConfig";
 
 const router = Router();
 const sliderController = SliderController.getInstance();
@@ -12,12 +12,12 @@ router.get(
 );
 router.post(
   "/slider",
-  uploadAndConvertSingle("sliderImage"),
+  uploadAndConvertSingleWithS3("sliderImage"),
   sliderController.createSlider.bind(sliderController)
 );
 router.put(
   "/slider/:id",
-  uploadAndConvertSingle("sliderImage"),
+  uploadAndConvertSingleWithS3("sliderImage"),
   sliderController.updateSlider.bind(sliderController)
 );
 router.delete(

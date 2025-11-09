@@ -48,7 +48,7 @@ const BrandForm: React.FC = () => {
           const brand = response.data;
           setValue("name", brand.name);
           if (brand.brandImage) {
-            setInitialImageUrl(`${BASE_URL}${brand.brandImage}`);
+            setInitialImageUrl(`${brand.brandImage}`);
           }
         }
       } catch (error) {

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { ProductController } from "../controllers/ProductController";
-import { uploadAndConvertSingle } from "../utils/multerConfig";
+import { uploadAndConvertSingleWithS3 } from "../utils/multerConfig";
 
 const router = Router();
 const productController = ProductController.getInstance();
@@ -13,12 +13,12 @@ router.get("/products-by-category-slug/:slug", productController.getProductsBySl
 
 router.post(
   "/product",
-  uploadAndConvertSingle("productImage"),
+  uploadAndConvertSingleWithS3("productImage"),
   productController.createProduct.bind(productController)
 );
 router.put(
   "/product/:id",
-  uploadAndConvertSingle("productImage"),
+  uploadAndConvertSingleWithS3("productImage"),
   productController.updateProduct.bind(productController)
 );
 router.delete(

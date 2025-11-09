@@ -2,6 +2,8 @@ import { S3Client, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
+  endpoint: process.env.S3_ENDPOINT,
+  forcePathStyle: false,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -9,8 +11,10 @@ const s3Client = new S3Client({
 });
 
 export const deleteFromS3 = async (url: string): Promise<void> => {
-  if (!url.includes(process.env.S3_BUCKET_NAME!)) return; 
-  const key = url.split(".com/")[1]; 
+  if (!url.includes(process.env.S3_WEBSITE_URL!)) return;
+
+  const key = url.replace(process.env.S3_WEBSITE_URL + "/", "");
+
   const params = {
     Bucket: process.env.S3_BUCKET_NAME,
     Key: key,

@@ -5,6 +5,9 @@ import { deleteFromS3 } from "./s3Delete";
 export const getImagePath = (req: any): string | undefined => {
   const storageType = process.env.FILE_STORAGE || "local";
 
+  console.log(storageType,'qweqweqweqwewqeeqwqweeqeqw');
+  
+
   if (storageType === "s3") {
     return req.body.uploadedUrl; 
   } else {

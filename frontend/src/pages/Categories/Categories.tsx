@@ -52,7 +52,7 @@ const Categories: React.FC = () => {
             <div className="flex justify-center"> 
               {category.categoryImage ? (
                 <img
-                  src={`${BASE_URL}${category.categoryImage}`}
+                  src={`${category.categoryImage}`}
                   alt={category.name}
                   className="w-16 h-16 object-cover rounded"
                 />

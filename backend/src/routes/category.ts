@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { CategoryController } from "../controllers/CategoryController";
-import { uploadAndConvertSingle } from "../utils/multerConfig";
+import { uploadAndConvertSingle, uploadAndConvertSingleWithS3 } from "../utils/multerConfig";
 
 const router = Router();
 const categoryController = CategoryController.getInstance();
@@ -12,12 +12,12 @@ router.get(
 );
 router.post(
   "/category/",
-  uploadAndConvertSingle("category_image"),
+  uploadAndConvertSingleWithS3("category_image"),
   categoryController.createCategory.bind(categoryController)
 );
 router.put(
   "/category/:id",
-  uploadAndConvertSingle("category_image"),
+  uploadAndConvertSingleWithS3("category_image"),
   categoryController.updateCategory.bind(categoryController)
 );
 router.delete(

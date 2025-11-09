@@ -117,7 +117,7 @@ const ProductForm: React.FC = () => {
           setValue("sku", product.sku || "");
           setValue("article", product.article || "");
           if (product.productImage) {
-            setInitialImageUrl(`${BASE_URL}${product.productImage}`);
+            setInitialImageUrl(`${product.productImage}`);
           }
         }
       } catch (error) {
@@ -252,7 +252,6 @@ const ProductForm: React.FC = () => {
             error={errors.isRecommended?.message}
           />
           
-          {/* ВСЕ КАТЕГОРИИ (включая дочерние) */}
           <Select
             label="Категория"
             options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}

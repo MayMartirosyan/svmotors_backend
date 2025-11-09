@@ -48,7 +48,7 @@ const SliderForm: React.FC = () => {
           setValue("sliderDesc", slider.sliderDesc || "");
           setValue("sliderLink", slider.sliderLink);
           if (slider.sliderImage) {
-            setInitialImageUrl(`${BASE_URL}${slider.sliderImage}`);
+            setInitialImageUrl(`${slider.sliderImage}`);
           }
         }
       } catch (error) {
