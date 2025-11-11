@@ -123,7 +123,7 @@ const OrderDetail: React.FC = () => {
                 <td className="border p-2">
                   {item?.product?.productImage ? (
                     <img
-                      src={`${item.product.productImage}`}
+                      src={`${item.product?.productImage?.medium}`}
                       alt={item?.product?.name || "Product Image"}
                       className="w-24 h-24 object-cover rounded"
                     />

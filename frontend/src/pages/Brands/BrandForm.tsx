@@ -6,6 +6,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { BASE_URL } from "../../utils";
+
 import Input from "../../uikit/Input";
 import ImageUpload from "../../components/ImageUpload";
 import Button from "../../uikit/Button";
@@ -20,6 +21,8 @@ const schema = yup.object().shape({
 
 const BrandForm: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
@@ -27,39 +30,44 @@ const BrandForm: React.FC = () => {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: yupResolver(schema as any),
-    defaultValues: {
-      name: "",
-    },
   });
 
-  const navigate = useNavigate();
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [initialImageUrl, setInitialImageUrl] = useState<string | null>(null);
+
+  // ✅ объект brandImage (original/medium/etc)
+  const [initialImageObject, setInitialImageObject] = useState<any | null>(null);
+
+  // ✅ превью для ImageUpload
+  const [initialPreview, setInitialPreview] = useState<string | null>(null);
+
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const loadBrand = async () => {
       setIsLoading(true);
       try {
         if (id) {
-          const response = await axios.get(
-            `${BASE_URL}/api/brands/brand/${id}`
-          );
-          const brand = response.data;
+          const res = await axios.get(`${BASE_URL}/api/brands/brand/${id}`);
+          const brand = res.data;
+
           setValue("name", brand.name);
+
           if (brand.brandImage) {
-            setInitialImageUrl(`${brand.brandImage}`);
+            setInitialImageObject(brand.brandImage);
+            setInitialPreview(
+              brand.brandImage.medium || brand.brandImage.original
+            );
           }
         }
-      } catch (error) {
-        console.error("Не удалось загрузить данные:", error);
-        toast.error(id ? "Не удалось загрузить бренд" : "Ошибка загрузки");
+      } catch (err) {
+        console.error(err);
+        toast.error("Ошибка загрузки бренда");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    loadBrand();
   }, [id, setValue]);
 
   const onSubmit = async (data: FormValues) => {
@@ -68,12 +76,13 @@ const BrandForm: React.FC = () => {
       const formData = new FormData();
       formData.append("name", data.name);
 
+      // ✅ ЛОГИКА:
       if (imageFile) {
         formData.append("brandImage", imageFile);
-      } else if (!id && !imageFile) {
+      } else if (initialImageObject) {
+        formData.append("brandImage", JSON.stringify(initialImageObject));
+      } else {
         formData.append("brandImage", "");
-      } else if (id && initialImageUrl) {
-        formData.append("brandImage", initialImageUrl);
       }
 
       const isUpdate = Boolean(id);
@@ -82,19 +91,17 @@ const BrandForm: React.FC = () => {
         ? `${BASE_URL}/api/brands/brand/${id}`
         : `${BASE_URL}/api/brands/brand`;
 
-      const response = await axios[method](url, formData, {
+      await axios[method](url, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
       });
 
-      toast.success(`Бренд ${isUpdate ? "обновлен" : "создан"} успешно`);
+      toast.success(isUpdate ? "Бренд обновлен" : "Бренд создан");
       navigate("/admin/brands");
-    } catch (error) {
-      console.error(error);
-      toast.error(
-        id ? "Не удалось обновить бренд" : "Не удалось создать бренд"
-      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Ошибка сохранения");
     } finally {
       setIsLoading(false);
     }
@@ -102,9 +109,10 @@ const BrandForm: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto p-4 bg-white shadow rounded">
-      <h1 className="text-2xl mb-4 text-[#1E293B] font-serif">
+      <h1 className="text-2xl font-serif text-[#1E293B] mb-4">
         {id ? "Редактировать бренд" : "Создать бренд"}
       </h1>
+
       {isLoading ? (
         <p>Загрузка...</p>
       ) : (
@@ -112,13 +120,15 @@ const BrandForm: React.FC = () => {
           <Input
             label="Название"
             {...register("name")}
-            disabled={isLoading}
             error={errors.name?.message}
           />
+
           <ImageUpload
+            label="Логотип"
             onImageChange={setImageFile}
-            initialPreview={initialImageUrl}
+            initialPreview={initialPreview}
           />
+
           <Button type="submit" disabled={isLoading}>
             {id ? "Обновить бренд" : "Сохранить бренд"}
           </Button>

@@ -18,14 +18,20 @@ export class Product {
   @Column({ type: "varchar", length: 255, nullable: false })
   name!: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
-  product_image!: string;
+  @Column({ type: "jsonb", nullable: true })
+  product_image!: {
+    original?: string;
+    large?: string;
+    medium?: string;
+    small?: string;
+    thumb?: string;
+  } | null;
 
   @Column({ type: "decimal", precision: 10, scale: 2, nullable: false })
   price!: number;
 
   @Column({ type: "decimal", precision: 10, scale: 2, nullable: true })
-  discounted_price!: number;
+  discounted_price!: number | null;
 
   @Column({ type: "text", nullable: true })
   description?: string;

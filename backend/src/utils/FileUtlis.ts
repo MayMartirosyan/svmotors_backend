@@ -1,36 +1,26 @@
-import fs from "fs";
-import path from "path";
-import { deleteFromS3 } from "./s3Delete";
+import { deleteAllVariantsFromS3 } from "./media/s3UploadUniversal";
 
-export const getImagePath = (req: any): string | undefined => {
-  const storageType = process.env.FILE_STORAGE || "local";
+// export const getImagePath = (req: any): any => {
+//   const storageType = process.env.FILE_STORAGE || "local";
+//   if (storageType === "s3") {
+//     return req.body.uploadedUrl; 
+//   }
+//   return req.file ? `/Uploads/${req.file.filename}` : undefined;
+// };
 
-  console.log(storageType,'qweqweqweqwewqeeqwqweeqeqw');
-  
+export const getImagePath = (req: any) => {
+  return req.body.uploadedUrl || null;
+};
 
-  if (storageType === "s3") {
-    return req.body.uploadedUrl; 
-  } else {
 
-    return req.file ? `/Uploads/${req.file.filename}` : undefined;
+export const deleteFile = async (imageObj: any) => {
+  if (!imageObj) return;
+  const urls = Object.values(imageObj).filter(Boolean);
+  for (const url of urls) {
+    await deleteAllVariantsFromS3(url as string);
   }
 };
 
-export const deleteFile = async (imagePath: string): Promise<void> => {
-  if (!imagePath) return;
-
-  const storageType = process.env.FILE_STORAGE || "local";
-
-  if (storageType === "s3") {
-    deleteFromS3(imagePath);
-  } else {
-    const fileName = path.basename(imagePath); 
-    const fullPath = path.join(__dirname, "../../Uploads", fileName);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-    }
-  }
-};
 
 export const getExistingEntity = async <T>(
   service: any,

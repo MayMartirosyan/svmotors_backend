@@ -70,9 +70,7 @@ const Brands: React.FC = () => {
                 <TableCell>
                   {brand.brandImage ? (
                     <img
-                      src={`${
-                        brand.brandImage.startsWith("http") ? "" : BASE_URL
-                      }${brand.brandImage}`}
+                      src={`${brand.brandImage.medium}`}
                       alt={brand.name}
                       className="w-16 h-16 object-cover rounded"
                     />

@@ -1,12 +1,10 @@
+// src/utils/multerConfig.ts
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
-import { Request } from "express";
-import { convertToWebp, convertToWebpMultiple } from "../middlewares/convertToWebp";
-import { uploadToS3Multiple, uploadToS3SingleMiddleware } from "./s3Upload";
 
-const uploadDir = path.join(__dirname, "../../Uploads");
+const uploadDir = path.join(__dirname, "../../tmp_uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -24,75 +22,25 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (
-  req: Request,
+  req: any,
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
   const allowedImageTypes = /jpeg|jpg|png|webp|gif/;
-  const allowedAudioTypes = /mp3|mp4|m4a/;
   const ext = path.extname(file.originalname).toLowerCase();
-  const mime = file.mimetype;
+  const mime = file.mimetype.toLowerCase();
 
-  if (
-    allowedImageTypes.test(ext) ||
-    allowedImageTypes.test(mime.split("/")[1])
-  ) {
-    cb(null, true);
-  } else if (
-    allowedAudioTypes.test(ext) ||
-    allowedAudioTypes.test(mime.split("/")[1])
-  ) {
+  if (allowedImageTypes.test(ext) || allowedImageTypes.test(mime)) {
     cb(null, true);
   } else {
-    cb(
-      new Error(
-        "Unsupported file type. Only images (jpeg, jpg, png, gif) and audio (mp3, mp4, m4a) are allowed."
-      )
-    );
+    cb(new Error("Only images (jpeg, jpg, png, webp, gif) are allowed"));
   }
 };
 
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 12 * 1024 * 1024 }, // 12 MB
 });
 
-export const uploadAndConvertSingle = (fieldName: string) => [
-  upload.single(fieldName),
-  convertToWebp,
-];
-
-export const uploadAndConvertMultiple = (fields: string[]) => [
-  upload.fields(
-    fields.map((field) => ({
-      name: field,
-      maxCount:
-        field.includes("introBgImage") || field.includes("dressCodeImage")
-          ? 10
-          : 1,
-    }))
-  ),
-  convertToWebpMultiple,
-];
-
-export const uploadAndConvertSingleWithS3 = (fieldName: string) => [
-  upload.single(fieldName),
-  convertToWebp,
-  uploadToS3SingleMiddleware,
-];
-
-
-export const uploadAndConvertMultipleWithS3 = (fields: string[]) => [
-  upload.fields(
-    fields.map((field) => ({
-      name: field,
-      maxCount:
-        field.includes("introBgImage") || field.includes("dressCodeImage")
-          ? 10
-          : 1,
-    }))
-  ),
-  convertToWebpMultiple,
-  uploadToS3Multiple,
-];
+export default upload;

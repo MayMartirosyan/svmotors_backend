@@ -34,8 +34,10 @@ export class ProductController {
         limit = "20",
         isRecommended,
       } = req.query;
+
       const parsedPage = parseInt(page as string);
       const parsedLimit = parseInt(limit as string);
+
       const result = await this.productService.getAllProducts(
         category as string,
         search as string,
@@ -43,9 +45,11 @@ export class ProductController {
         parsedLimit,
         isRecommended === "true"
       );
+
       const camelCaseProducts = result.products.map((product) =>
         toCamelCase(product)
       );
+
       res.json({
         products: camelCaseProducts,
         total: result.total,
@@ -57,53 +61,9 @@ export class ProductController {
     }
   }
 
-  // async getProductsByCategory(req: Request, res: Response) {
-  //   try {
-  //     const {
-  //       categoryName,
-  //       page = "1",
-  //       limit = "12",
-  //       sort = "price_asc",
-  //       minPrice,
-  //       maxPrice,
-  //     } = req.query;
-  //     const parsedPage = parseInt(page as string);
-  //     const parsedLimit = parseInt(limit as string);
-  //     const parsedMinPrice = minPrice
-  //       ? parseFloat(minPrice as string)
-  //       : undefined;
-  //     const parsedMaxPrice = maxPrice
-  //       ? parseFloat(maxPrice as string)
-  //       : undefined;
-
-  //     const result = await this.productService.getProductsByCategory(
-  //       categoryName as string,
-  //       parsedPage,
-  //       parsedLimit,
-  //       sort as "price_asc" | "price_desc",
-  //       parsedMinPrice,
-  //       parsedMaxPrice
-  //     );
-  //     const camelCaseProducts = result.products.map((product) =>
-  //       toCamelCase(product)
-  //     );
-  //     res.json({
-  //       products: camelCaseProducts,
-  //       total: result.total,
-  //       hasMore: result.hasMore,
-  //       currentPage: result.currentPage,
-  //       minPrice: result.minPrice,
-  //       maxPrice: result.maxPrice,
-  //       limit: result.limit,
-  //     });
-  //   } catch (error: any) {
-  //     res.status(500).json({ error: error.message });
-  //   }
-  // }
-
   async getProductsBySlug(req: Request, res: Response) {
     try {
-      const { slug } = req.params; // ← из URL
+      const { slug } = req.params;
       const {
         page = "1",
         limit = "12",
@@ -111,7 +71,7 @@ export class ProductController {
         minPrice,
         maxPrice,
       } = req.query;
-  
+
       const result = await this.productService.getProductsBySlug(
         slug,
         parseInt(page as string),
@@ -120,8 +80,11 @@ export class ProductController {
         minPrice ? parseFloat(minPrice as string) : undefined,
         maxPrice ? parseFloat(maxPrice as string) : undefined
       );
-  
-      const camelCaseProducts = result.products.map(p => toCamelCase(p));
+
+      const camelCaseProducts = result.products.map((p) =>
+        toCamelCase(p)
+      );
+
       res.json({
         products: camelCaseProducts,
         total: result.total,
@@ -141,8 +104,7 @@ export class ProductController {
     try {
       const id = parseInt(req.params.id);
       const product = await this.productService.getProductById(id);
-      const camelCaseProduct = toCamelCase(product);
-      res.json(camelCaseProduct);
+      res.json(toCamelCase(product));
     } catch (error: any) {
       res.status(404).json({ error: error.message });
     }
@@ -152,8 +114,7 @@ export class ProductController {
     try {
       const slug = req.params.slug;
       const product = await this.productService.getProductBySlug(slug);
-      const camelCaseProduct = toCamelCase(product);
-      res.json(camelCaseProduct);
+      res.json(toCamelCase(product));
     } catch (error: any) {
       res.status(404).json({ error: error.message });
     }
@@ -176,12 +137,17 @@ export class ProductController {
         throw new Error("Category is required for product creation");
       }
 
+      const normalizedDiscounted =
+        discountedPrice === "" ||
+        discountedPrice === "null" ||
+        discountedPrice === "undefined"
+          ? null
+          : parseFloat(discountedPrice);
+
       const snakeCaseData: any = {
         name,
         price: parseFloat(price),
-        discounted_price: discountedPrice
-          ? parseFloat(discountedPrice)
-          : undefined,
+        discounted_price: normalizedDiscounted,
         is_new: isNew === "true",
         is_recommended: isRecommended === "true",
         category_id: parseInt(categoryId),
@@ -191,8 +157,7 @@ export class ProductController {
       };
 
       const newProduct = await this.productService.createProduct(snakeCaseData);
-      const camelCaseProduct = toCamelCase(newProduct);
-      res.status(201).json(camelCaseProduct);
+      res.status(201).json(toCamelCase(newProduct));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -201,7 +166,8 @@ export class ProductController {
   async updateProduct(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      const {
+
+      let {
         name,
         price,
         discountedPrice,
@@ -234,15 +200,22 @@ export class ProductController {
         throw new Error(`Category with id ${categoryId} not found`);
       }
 
+      // ✅ Правильная обработка скидки — пустое значение → NULL
+      const normalizedDiscount =
+        discountedPrice === "" ||
+        discountedPrice === "null" ||
+        discountedPrice === "undefined" ||
+        discountedPrice === undefined
+          ? null
+          : parseFloat(discountedPrice);
+
       const productToUpdate: Partial<Product> = {
         id,
         name,
         description,
         short_description: shortDescription,
         price: price ? parseFloat(price) : undefined,
-        discounted_price: discountedPrice
-          ? parseFloat(discountedPrice)
-          : undefined,
+        discounted_price: normalizedDiscount,
         is_new: isNew === "true",
         is_recommended: isRecommended === "true",
         category_id: parseInt(categoryId),
@@ -263,8 +236,8 @@ export class ProductController {
         id,
         productToUpdate
       );
-      const camelCaseProduct = toCamelCase(updatedProduct);
-      res.json(camelCaseProduct);
+
+      res.json(toCamelCase(updatedProduct));
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -273,16 +246,20 @@ export class ProductController {
   async deleteProduct(req: Request, res: Response) {
     try {
       const id = parseInt(req.params.id);
+
       const product = await getExistingEntity<Product>(
         this.productService,
         "getProductById",
         id,
         "Product not found"
       );
+
       if (product.product_image) {
         await deleteFile(product.product_image);
       }
+
       await this.productService.deleteProduct(id);
+
       res.status(204).send();
     } catch (error: any) {
       res.status(404).json({ error: error.message });

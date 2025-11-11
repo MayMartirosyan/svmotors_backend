@@ -57,7 +57,7 @@ const Sliders: React.FC = () => {
             <TableCell>
               {slider.sliderImage ? (
                 <img
-                  src={`${slider.sliderImage}`}
+                  src={`${slider.sliderImage.medium}`}
                   alt={slider.sliderTitle}
                   className="w-full h-16 object-cover rounded"
                 />

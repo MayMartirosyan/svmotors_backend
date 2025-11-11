@@ -112,17 +112,17 @@ const Products: React.FC = () => {
                 <TableCell>{product.id}</TableCell>
                 <TableCell>{product.name}</TableCell>
                 <TableCell>
-                  {product.productImage ? (
-                    <img
-                      src={`${
-                        product.productImage.startsWith("http") ? "" : BASE_URL
-                      }${product.productImage}`}
-                      alt={product.name}
-                      className="w-16 h-16 object-cover rounded"
-                    />
-                  ) : (
-                    "Нет изображения"
-                  )}
+                  <TableCell>
+                    {product.productImage ? (
+                      <img
+                        src={product.productImage.thumb}
+                        alt={product.name}
+                        className="w-28 h-28 object-cover ounded"
+                      />
+                    ) : (
+                      "Нет изображения"
+                    )}
+                  </TableCell>
                 </TableCell>
                 <TableCell>{product.price} ₽</TableCell>
                 <TableCell>

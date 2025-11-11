@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { BrandService } from "../services/BrandService";
 import { toCamelCase } from "../utils";
-import { getImagePath } from "../utils/FileUtlis";
+import { deleteFile, getImagePath } from "../utils/FileUtlis";
 import { Brand } from "../entities/Brand";
 
 export class BrandController {
@@ -68,12 +68,21 @@ export class BrandController {
         name,
       };
 
+      const existingBrand = await this.brandService.getBrandById(id);
+
       const newImagePath = getImagePath(req);
+
       if (newImagePath) {
+        if (existingBrand.brand_image) {
+          await deleteFile(existingBrand.brand_image);
+        }
         brandToUpdate.brand_image = newImagePath;
       }
 
-      const updatedBrand = await this.brandService.updateBrand(id, brandToUpdate);
+      const updatedBrand = await this.brandService.updateBrand(
+        id,
+        brandToUpdate
+      );
       const camelCaseBrand = toCamelCase(updatedBrand);
       res.json(camelCaseBrand);
     } catch (error: any) {

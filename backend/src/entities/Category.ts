@@ -9,8 +9,17 @@ export class Category {
   @Column({ type: "varchar", length: 255, nullable: false })
   name!: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
-  category_image!: string | null;
+  // @Column({ type: "varchar", length: 255, nullable: true })
+  // category_image!: string | null;
+
+  @Column({ type: "jsonb", nullable: true })
+  category_image!: {
+    original?: string;
+    large?: string;
+    medium?: string;
+    small?: string;
+    thumb?: string;
+  } | null;
 
   @Column({ unique: true, nullable: true })
   slug?: string;

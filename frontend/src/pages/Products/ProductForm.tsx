@@ -6,11 +6,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { BASE_URL } from "../../utils";
+
 import Input from "../../uikit/Input";
 import ImageUpload from "../../components/ImageUpload";
 import Button from "../../uikit/Button";
 import Select from "../../uikit/Select";
 import Checkbox from "../../uikit/Checkbox";
+import Textarea from "../../uikit/TextArea";
 
 interface FormValues {
   name: string;
@@ -27,26 +29,41 @@ interface FormValues {
 
 const schema = yup.object().shape({
   name: yup.string().required("Название обязательно"),
-  shortDescription: yup.string().max(255, "Краткое описание не должно превышать 255 символов").nullable(),
+  shortDescription: yup.string().max(255).nullable(),
   description: yup.string().required("Описание обязательно"),
+
   price: yup
     .number()
     .typeError("Цена должна быть числом")
     .positive("Цена должна быть больше 0")
     .required("Цена обязательна"),
+
   discountedPrice: yup
     .number()
+    .typeError("Скидочная цена должна быть числом")
     .positive("Скидочная цена должна быть больше 0")
-    .nullable(),
+    .nullable()
+    .transform((value, orig) => (orig === "" ? null : value))
+    .test(
+      "is-less-than-price",
+      "Скидочная цена должна быть меньше обычной",
+      function (value) {
+        const { price } = this.parent;
+        if (!value) return true;
+        return value < price;
+      }
+    ),
+
   isNew: yup.boolean(),
   isRecommended: yup.boolean(),
   categoryId: yup.number().required("Категория обязательна"),
-  sku: yup.string().max(50, "SKU не должно превышать 50 символов").nullable(),
-  article: yup.string().max(50, "Артикул не должно превышать 50 символов").nullable(),
+  sku: yup.string().max(50).nullable(),
+  article: yup.string().max(50).nullable(),
 });
-
 const ProductForm: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
+  const navigate = useNavigate();
+
   const {
     register,
     handleSubmit,
@@ -55,134 +72,144 @@ const ProductForm: React.FC = () => {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: yupResolver(schema as any),
-    defaultValues: {
-      name: "",
-      shortDescription: "",
-      description: "",
-      price: null,
-      discountedPrice: null,
-      isNew: false,
-      isRecommended: false,
-      categoryId: undefined as unknown as number,
-      sku: "",
-      article: "",
-    },
   });
 
-  const navigate = useNavigate();
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [initialImageUrl, setInitialImageUrl] = useState<string | null>(null);
-  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+
+  // ✅ Храним весь объект productImage (original/large/medium/... )
+  const [initialImageObject, setInitialImageObject] = useState<any | null>(
+    null
+  );
+
+  // ✅ Только превью для ImageUpload
+  const [initialPreview, setInitialPreview] = useState<string | null>(null);
+
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>(
+    []
+  );
   const [isLoading, setIsLoading] = useState(false);
 
-  // Рекурсивно собираем все категории с отступами
-  const flattenCategories = (
-    categories: any[],
-    depth = 0
-  ): { id: number; name: string }[] => {
+  // ——————————————————————————————————————
+  // Функция разворачивания категорий
+  // ——————————————————————————————————————
+  const flattenCategories = (categories: any[], depth = 0) => {
     return categories.reduce((acc: any[], cat: any) => {
-      acc.push({
-        id: cat.id,
-        name: `${'— '.repeat(depth)}${cat.name}`,
-      });
-      if (cat.children && cat.children.length > 0) {
+      acc.push({ id: cat.id, name: `${"— ".repeat(depth)}${cat.name}` });
+      if (cat.children?.length) {
         acc.push(...flattenCategories(cat.children, depth + 1));
       }
       return acc;
     }, []);
   };
 
+  // ——————————————————————————————————————
+  // Загрузка продукта + категорий
+  // ——————————————————————————————————————
   useEffect(() => {
-    const fetchData = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       try {
-        const [categoriesResponse, productResponse] = await Promise.all([
+        const [catRes, prodRes] = await Promise.all([
           axios.get(`${BASE_URL}/api/categories`),
-          id ? axios.get(`${BASE_URL}/api/products/product/${id}`) : Promise.resolve(null),
+          id
+            ? axios.get(`${BASE_URL}/api/products/product/${id}`)
+            : Promise.resolve(null),
         ]);
 
-        // Плоский список всех категорий
-        setCategories(flattenCategories(categoriesResponse.data));
+        setCategories(flattenCategories(catRes.data));
 
-        if (id && productResponse) {
-          const product = productResponse.data;
+        if (id && prodRes) {
+          const product = prodRes.data;
+
           setValue("name", product.name);
-          setValue("shortDescription", product.shortDescription || "");
-          setValue("description", product.description || "");
+          setValue("shortDescription", product.shortDescription ?? "");
+          setValue("description", product.description ?? "");
           setValue("price", product.price);
-          setValue("discountedPrice", product.discountedPrice || null);
+          setValue("discountedPrice", product.discountedPrice ?? null);
           setValue("isNew", product.isNew);
           setValue("isRecommended", product.isRecommended);
           setValue("categoryId", product.category?.id || product.categoryId);
-          setValue("sku", product.sku || "");
-          setValue("article", product.article || "");
+          setValue("sku", product.sku ?? "");
+          setValue("article", product.article ?? "");
+
           if (product.productImage) {
-            setInitialImageUrl(`${product.productImage}`);
+            setInitialImageObject(product.productImage);
+            setInitialPreview(
+              product.productImage.medium || product.productImage.original
+            );
           }
         }
-      } catch (error) {
-        console.error("Не удалось загрузить данные:", error);
-        toast.error(id ? "Не удалось загрузить продукт" : "Не удалось загрузить категории");
+      } catch (err) {
+        console.error(err);
+        toast.error("Ошибка загрузки данных");
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchData();
+    loadData();
   }, [id, setValue]);
 
+  // ——————————————————————————————————————
+  // ОТПРАВКА ФОРМЫ
+  // ——————————————————————————————————————
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
       const formData = new FormData();
+
       formData.append("name", data.name);
-      formData.append("shortDescription", data.shortDescription || "");
+      formData.append("shortDescription", data.shortDescription ?? "");
       formData.append("description", data.description);
       formData.append("price", String(data.price));
       formData.append("sku", data.sku);
       formData.append("article", data.article);
-      if (data.discountedPrice !== null) {
+
+      if (data.discountedPrice !== null)
         formData.append("discountedPrice", String(data.discountedPrice));
-      }
+
       formData.append("isNew", String(data.isNew));
       formData.append("isRecommended", String(data.isRecommended));
       formData.append("categoryId", String(data.categoryId));
 
       if (imageFile) {
         formData.append("productImage", imageFile);
-      } else if (!id && !imageFile) {
+      } else if (initialImageObject) {
+        formData.append("productImage", JSON.stringify(initialImageObject));
+      } else {
         formData.append("productImage", "");
-      } else if (id && initialImageUrl) {
-        formData.append("productImage", initialImageUrl);
       }
 
       const isUpdate = Boolean(id);
       const method = isUpdate ? "put" : "post";
+
       const url = isUpdate
         ? `${BASE_URL}/api/products/product/${id}`
         : `${BASE_URL}/api/products/product`;
 
-      const response = await axios[method](url, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      await axios[method](url, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
-      toast.success(`Продукт ${isUpdate ? "обновлен" : "создан"} успешно`);
+      toast.success(isUpdate ? "Продукт обновлен" : "Продукт создан");
       navigate("/admin/products");
-    } catch (error) {
-      console.error(error);
-      toast.error(id ? "Не удалось обновить продукт" : "Не удалось создать продукт");
+    } catch (err) {
+      console.error(err);
+      toast.error("Ошибка сохранения продукта");
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ——————————————————————————————————————
+  // UI
+  // ——————————————————————————————————————
   return (
     <div className="max-w-2xl mx-auto p-4 bg-white shadow rounded">
       <h1 className="text-2xl mb-4 text-[#1E293B] font-serif">
         {id ? "Редактировать продукт" : "Создать продукт"}
       </h1>
+
       {isLoading ? (
         <p>Загрузка...</p>
       ) : (
@@ -190,78 +217,77 @@ const ProductForm: React.FC = () => {
           <Input
             label="Название"
             {...register("name")}
-            disabled={isLoading}
             error={errors.name?.message}
           />
           <Input
             label="Код Продукта"
             {...register("sku")}
-            disabled={isLoading}
             error={errors.sku?.message}
           />
           <Input
             label="Артикул"
             {...register("article")}
-            disabled={isLoading}
             error={errors.article?.message}
           />
-          <Input
+          <Textarea
             label="Краткое описание"
+            rows={4}
             {...register("shortDescription")}
-            disabled={isLoading}
             error={errors.shortDescription?.message}
           />
-          <Input
+
+          <Textarea
             label="Описание"
+            rows={8}
             {...register("description")}
-            disabled={isLoading}
             error={errors.description?.message}
           />
+
           <ImageUpload
+            label="Изображение"
             onImageChange={setImageFile}
-            initialPreview={initialImageUrl}
+            initialPreview={initialPreview}
           />
+
           <Input
             label="Цена"
             type="number"
             {...register("price")}
-            disabled={isLoading}
             error={errors.price?.message}
           />
           <Input
             label="Скидочная цена"
             type="number"
             {...register("discountedPrice")}
-            disabled={isLoading}
             error={errors.discountedPrice?.message}
           />
+
           <Checkbox
             label="Новинка"
             {...register("isNew")}
             checked={watch("isNew")}
             onChange={(e) => setValue("isNew", e.target.checked)}
-            disabled={isLoading}
-            error={errors.isNew?.message}
           />
+
           <Checkbox
             label="Рекомендуемый"
             {...register("isRecommended")}
             checked={watch("isRecommended")}
             onChange={(e) => setValue("isRecommended", e.target.checked)}
-            disabled={isLoading}
-            error={errors.isRecommended?.message}
           />
-          
+
           <Select
             label="Категория"
-            options={categories.map((cat) => ({ value: cat.id, label: cat.name }))}
+            options={categories.map((cat) => ({
+              value: cat.id,
+              label: cat.name,
+            }))}
             {...register("categoryId")}
-            disabled={isLoading}
             error={errors.categoryId?.message}
           />
 
-          <Button type="submit" disabled={isLoading}>
-            {id ? "Обновить продукт" : "Сохранить продукт"}
+          <Button type="submit">
+            {id ? "Обновить продукт" : "Создать продукт"}
           </Button>
         </form>
       )}

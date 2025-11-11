@@ -11,8 +11,17 @@ export class Slider {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
-  slider_image!: string;
+  // @Column({ type: "varchar", length: 255, nullable: true })
+  // slider_image!: string;
+
+  @Column({ type: "jsonb", nullable: true })
+  slider_image!: {
+    original?: string;
+    large?: string;
+    medium?: string;
+    small?: string;
+    thumb?: string;
+  } | null;
 
   @Column({ type: "varchar", length: 255, nullable: false })
   slider_title!: string;

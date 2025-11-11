@@ -16,7 +16,7 @@
     "multer": "^2.0.1",
     "pg": "^8.11.3",
     "reflect-metadata": "^0.1.14",
-    "sharp": "^0.34.3",
+    "sharp": "^0.34.5",
     "snakecase-keys": "^8.1.0",
     "typeorm": "^0.3.17"
   },
