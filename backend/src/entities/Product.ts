@@ -36,7 +36,7 @@ export class Product {
   @Column({ type: "text", nullable: true })
   description?: string;
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "text", nullable: true })
   short_description?: string;
 
   @Column({ type: "varchar", length: 50, nullable: true })

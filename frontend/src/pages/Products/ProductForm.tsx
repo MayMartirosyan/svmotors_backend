@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useParams, useNavigate } from "react-router-dom";
@@ -13,6 +13,7 @@ import Button from "../../uikit/Button";
 import Select from "../../uikit/Select";
 import Checkbox from "../../uikit/Checkbox";
 import Textarea from "../../uikit/TextArea";
+import TextEditor from "../../uikit/TextEditor";
 
 interface FormValues {
   name: string;
@@ -29,7 +30,7 @@ interface FormValues {
 
 const schema = yup.object().shape({
   name: yup.string().required("Название обязательно"),
-  shortDescription: yup.string().max(255).nullable(),
+  shortDescription: yup.string().nullable(),
   description: yup.string().required("Описание обязательно"),
 
   price: yup
@@ -68,6 +69,7 @@ const ProductForm: React.FC = () => {
     register,
     handleSubmit,
     setValue,
+    control,
     watch,
     formState: { errors },
   } = useForm<FormValues>({
@@ -229,18 +231,30 @@ const ProductForm: React.FC = () => {
             {...register("article")}
             error={errors.article?.message}
           />
-          <Textarea
-            label="Краткое описание"
-            rows={4}
-            {...register("shortDescription")}
-            error={errors.shortDescription?.message}
+          <Controller
+            control={control}
+            name="shortDescription"
+            render={({ field }) => (
+              <TextEditor
+                label="Краткое описание"
+                value={field.value || ""}
+                onChange={field.onChange}
+                error={errors.shortDescription?.message}
+              />
+            )}
           />
 
-          <Textarea
-            label="Описание"
-            rows={8}
-            {...register("description")}
-            error={errors.description?.message}
+          <Controller
+            control={control}
+            name="description"
+            render={({ field }) => (
+              <TextEditor
+                label="Описание"
+                value={field.value || ""}
+                onChange={field.onChange}
+                error={errors.description?.message}
+              />
+            )}
           />
 
           <ImageUpload
