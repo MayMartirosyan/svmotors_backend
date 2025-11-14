@@ -5,6 +5,9 @@ const router = Router();
 const checkoutController = CheckoutController.getInstance();
 
 router.post("/save", (req, res) => checkoutController.createCheckout(req, res));
+router.post("/yookassa-callback", (req, res) =>
+  checkoutController.yookassaCallback(req, res)
+);
 router.get("/orders", (req, res) => checkoutController.getAllOrders(req, res));
 router.get("/orders/:orderId", (req, res) =>
   checkoutController.getOrderByOrderId(req, res)

@@ -22,14 +22,17 @@ export class CheckoutController {
       const checkoutData = req.body;
       const token = req.headers.authorization?.split(" ")[1] || null;
       const apiToken = (req.headers["x-api-token"] as string) || null;
-      const { checkout, order } = await this.checkoutService.createCheckout(
+      const { checkout, order, paymentUrl } = await this.checkoutService.createCheckout(
         checkoutData,
         token,
         apiToken
       );
-      res
-        .status(201)
-        .json({ checkout: toCamelCase(checkout), order: toCamelCase(order) });
+      
+      res.status(201).json({
+        checkout: toCamelCase(checkout),
+        order: toCamelCase(order),
+        paymentUrl
+      });
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
@@ -53,6 +56,28 @@ export class CheckoutController {
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  }
+
+  async yookassaCallback(req: Request, res: Response) {
+    try {
+
+      const expectedLogin = process.env.YKASSA_WEBHOOK_LOGIN;
+      const expectedPassword = process.env.YKASSA_WEBHOOK_PASSWORD;
+  
+      if (expectedLogin && expectedPassword) {
+        const authHeader = req.headers.authorization || "";
+        const expected = "Basic " + Buffer.from(`${expectedLogin}:${expectedPassword}`).toString("base64");
+        if (authHeader !== expected) {
+          return res.status(401).send("Unauthorized");
+        }
+      }
+  
+      await this.checkoutService.handleYooKassaCallback(req.body);
+      res.status(200).send("OK");
+    } catch (error: any) {
+      console.error("YooKassa callback error:", error);
+      res.status(500).send("Error");
     }
   }
 

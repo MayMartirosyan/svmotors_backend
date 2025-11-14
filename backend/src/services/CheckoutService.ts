@@ -5,6 +5,7 @@ import { Order } from "../entities/Order";
 import { Product } from "../entities/Product";
 import * as jwt from "jsonwebtoken";
 import { Not, ILike } from "typeorm";
+import axios from "axios";
 
 export class CheckoutService {
   private checkoutRepository = AppDataSource.getRepository(Checkout);
@@ -12,13 +13,18 @@ export class CheckoutService {
   private userRepository = AppDataSource.getRepository(User);
   private productRepository = AppDataSource.getRepository(Product);
 
-
-
-  private async resolveUser(token: string | null, apiToken: string | null, relations: string[] = []): Promise<User> {
+  private async resolveUser(
+    token: string | null,
+    apiToken: string | null,
+    relations: string[] = []
+  ): Promise<User> {
     const repo = this.userRepository;
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key") as { id: number; email: string };
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || "your-secret-key"
+      ) as { id: number; email: string };
       return await repo.findOneOrFail({
         where: { id: decoded.id, email: decoded.email },
         relations,
@@ -46,10 +52,74 @@ export class CheckoutService {
     throw new Error("No authentication token or API token provided");
   }
 
-  async createCheckout(checkoutData: any, token: string | null, apiToken: string | null) {
-    const { name, surname, email, tel, deliveryType, timeFrom, timeTo, cartItems,paymentMethod } = checkoutData;
+  private async createYooKassaPayment(
+    totalAmount: number,
+    orderId: number,
+    description: string
+  ) {
+    const shopId = process.env.YKASSA_SHOP_ID;
+    const secretKey = process.env.YKASSA_SECRET_KEY;
 
-    let user = await this.resolveUser(token, apiToken, ["cart", "cart.product"]);
+    if (!shopId || !secretKey) {
+      throw new Error("YooKassa credentials are not configured");
+    }
+
+    const authToken = Buffer.from(`${shopId}:${secretKey}`).toString("base64");
+    const idempotenceKey = `${orderId}-${Date.now()}`;
+
+    const returnUrlBase =
+      process.env.YKASSA_RETURN_URL ||
+      "https://kolesnicaauto.ru/order-confirmation";
+    const returnUrl = `${returnUrlBase}?orderId=${orderId}`;
+
+    const body = {
+      amount: {
+        value: totalAmount.toFixed(2), // строка с 2 знаками
+        currency: "RUB",
+      },
+      capture: true, // сразу списывать средства
+      confirmation: {
+        type: "redirect",
+        return_url: returnUrl,
+      },
+      description,
+      metadata: {
+        orderId, // будем по нему находить заказ в вебхуке
+      },
+    };
+
+    const response = await axios.post(
+      "https://api.yookassa.ru/v3/payments",
+      body,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotence-Key": idempotenceKey,
+          Authorization: `Basic ${authToken}`,
+        },
+      }
+    );
+
+    return response.data;
+  }
+
+  async createCheckout(checkoutData: any, token: any, apiToken: any) {
+    const {
+      name,
+      surname,
+      email,
+      tel,
+      deliveryType,
+      timeFrom,
+      timeTo,
+      cartItems,
+      paymentMethod,
+    } = checkoutData;
+
+    const user = await this.resolveUser(token, apiToken, [
+      "cart",
+      "cart.product",
+    ]);
 
     if (!cartItems || cartItems.length === 0) {
       throw new Error("Корзина пуста");
@@ -73,28 +143,79 @@ export class CheckoutService {
 
     const savedCheckout = await this.checkoutRepository.save(checkout);
 
-    const status = paymentMethod === 'bankCard' ? 'approved' : 'pending';
-
     const order = this.orderRepository.create({
-      status,
+      status: "pending",
       totalAmount,
       checkout: savedCheckout,
     });
+
     const savedOrder = await this.orderRepository.save(order);
 
-    // Очищаем корзину и обновляем summary
-    user.cart = [];
-    user.cart_summary = 0;
-    await this.userRepository.save(user);
+  
+    let paymentUrl: string | null = null;
 
-    if (!token && apiToken) {
-      await this.userRepository.remove(user);
+    if (paymentMethod === "bankCard") {
+      const payment = await this.createYooKassaPayment(
+        totalAmount,
+        savedOrder.orderId,
+        `Оплата заказа №${savedOrder.orderId}`
+      );
+
+      paymentUrl = payment?.confirmation?.confirmation_url;
+      if (!paymentUrl) throw new Error("Не удалось получить URL оплаты");
     }
 
-    return { checkout: savedCheckout, order: savedOrder };
+    return { checkout: savedCheckout, order: savedOrder, paymentUrl };
   }
 
-  async getAllOrders(page: number = 1, limit: number = 24, search: string = "") {
+  async handleYooKassaCallback(body: any) {
+    const event = body.event;
+    const payment = body.object;
+
+    if (!payment) return;
+
+    const metadata = payment.metadata || {};
+    const orderId = metadata.orderId;
+
+    if (!orderId) {
+      // ничего не знаем про заказ — просто игнор
+      return;
+    }
+
+    const order = await this.orderRepository.findOne({
+      where: { orderId },
+      relations: ["checkout"],
+    });
+
+    if (!order) return;
+
+    if (event === "payment.succeeded" && payment.status === "succeeded") {
+      order.status = "approved";
+      await this.orderRepository.save(order);
+    } else if (event === "payment.canceled") {
+      order.status = "rejected";
+      await this.orderRepository.save(order);
+      const checkout = order.checkout;
+      if (checkout?.user) {
+        const user = await this.userRepository.findOne({
+          where: { id: checkout.user.id },
+        });
+        if (user) {
+          user.cart = [];
+          user.cart_summary = 0;
+          await this.userRepository.save(user);
+        }
+      }
+    }
+
+    // другие статусы можно при желании обработать
+  }
+
+  async getAllOrders(
+    page: number = 1,
+    limit: number = 24,
+    search: string = ""
+  ) {
     try {
       const query = this.orderRepository
         .createQueryBuilder("order")
@@ -122,35 +243,41 @@ export class CheckoutService {
   }
 
   async getUserOrders(token: string) {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: number };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      id: number;
+    };
     const userId = decoded.id;
-  
+
     const orders = await this.orderRepository.find({
       where: { checkout: { user: { id: userId } } },
       relations: ["checkout", "checkout.user"],
       order: { created_at: "DESC" },
     });
-  
+
     for (const order of orders) {
       if (order.checkout?.cartItems) {
         order.checkout.cartItems = await Promise.all(
           order.checkout.cartItems.map(async (item: any) => {
-            const product = await this.productRepository.findOneBy({ id: item.productId });
+            const product = await this.productRepository.findOneBy({
+              id: item.productId,
+            });
             return {
               ...item,
-              product: product ? {
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                discounted_price: product.discounted_price,
-                product_image: product.product_image,
-              } : null,
+              product: product
+                ? {
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    discounted_price: product.discounted_price,
+                    product_image: product.product_image,
+                  }
+                : null,
             };
           })
         );
       }
     }
-  
+
     return { orders };
   }
 
@@ -165,18 +292,22 @@ export class CheckoutService {
       if (order.checkout && order.checkout.cartItems) {
         order.checkout.cartItems = await Promise.all(
           order.checkout.cartItems.map(async (item: any) => {
-            const product = await this.productRepository.findOneBy({ id: item.productId });
+            const product = await this.productRepository.findOneBy({
+              id: item.productId,
+            });
             return {
               ...item,
-              product: product ? {
-                id: product?.id,
-                name: product?.name,
-                price: product?.price,
-                discounted_price: product?.discounted_price,
-                sku: product?.sku,
-                product_image: product?.product_image,
-                article: product?.article,
-              } : null,
+              product: product
+                ? {
+                    id: product?.id,
+                    name: product?.name,
+                    price: product?.price,
+                    discounted_price: product?.discounted_price,
+                    sku: product?.sku,
+                    product_image: product?.product_image,
+                    article: product?.article,
+                  }
+                : null,
             };
           })
         );
@@ -188,20 +319,20 @@ export class CheckoutService {
     }
   }
 
-  async updateOrderStatus(orderId: number, status: 'approved' | 'rejected') {
+  async updateOrderStatus(orderId: number, status: "approved" | "rejected") {
     const order = await this.orderRepository.findOne({
       where: { orderId },
-      relations: ['checkout'],
+      relations: ["checkout"],
     });
-  
-    if (!order) throw new Error('Order not found');
-    if (order.checkout.paymentMethod === 'bankCard') {
-      throw new Error('Cannot change status for card payments');
+
+    if (!order) throw new Error("Order not found");
+    if (order.checkout.paymentMethod === "bankCard") {
+      throw new Error("Cannot change status for card payments");
     }
-    if (order.status !== 'pending') {
-      throw new Error('Can only change status from pending');
+    if (order.status !== "pending") {
+      throw new Error("Can only change status from pending");
     }
-  
+
     order.status = status;
     return await this.orderRepository.save(order);
   }
@@ -217,10 +348,14 @@ export class CheckoutService {
     }
   }
 
-  private async calculateTotalAmount(cartItems: { productId: number; qty: number }[]) {
+  private async calculateTotalAmount(
+    cartItems: { productId: number; qty: number }[]
+  ) {
     let total = 0;
     for (const item of cartItems) {
-      const product = await this.productRepository.findOneBy({ id: item.productId });
+      const product = await this.productRepository.findOneBy({
+        id: item.productId,
+      });
       if (product) {
         const price = product.discounted_price || product.price;
         total += price * item.qty;
