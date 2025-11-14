@@ -57,51 +57,87 @@ export class CheckoutService {
     orderId: number,
     description: string
   ) {
-    const shopId = process.env.YKASSA_SHOP_ID;
-    const secretKey = process.env.YKASSA_SECRET_KEY;
+    const shopId = process.env.YKASSA_SHOP_ID?.trim();
+    const secretKey = process.env.YKASSA_SECRET_KEY?.trim();
+  
 
+    console.log(shopId,secretKey,'qweqweeq');
+    
     if (!shopId || !secretKey) {
       throw new Error("YooKassa credentials are not configured");
     }
-
-    const authToken = Buffer.from(`${shopId}:${secretKey}`).toString("base64");
+  
     const idempotenceKey = `${orderId}-${Date.now()}`;
-
-    const returnUrlBase =
-      process.env.YKASSA_RETURN_URL ||
-      "https://kolesnicaauto.ru/order-confirmation";
-    const returnUrl = `${returnUrlBase}?orderId=${orderId}`;
-
+    const returnUrl = `${process.env.YKASSA_RETURN_URL || "https://kolesnicaauto.ru/order-confirmation"}?orderId=${orderId}`;
+  
     const body = {
       amount: {
-        value: totalAmount.toFixed(2), // строка с 2 знаками
+        value: totalAmount.toFixed(2),
         currency: "RUB",
       },
-      capture: true, // сразу списывать средства
+      capture: true,
       confirmation: {
         type: "redirect",
         return_url: returnUrl,
       },
       description,
-      metadata: {
-        orderId, // будем по нему находить заказ в вебхуке
-      },
+      metadata: { orderId },
     };
-
-    const response = await axios.post(
-      "https://api.yookassa.ru/v3/payments",
-      body,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotence-Key": idempotenceKey,
-          Authorization: `Basic ${authToken}`,
-        },
-      }
-    );
-
-    return response.data;
+  
+    try {
+      const response = await axios.post(
+        "https://api.yookassa.ru/v3/payments",
+        body,
+        {
+          auth: {
+            username: shopId,
+            password: secretKey,
+          },
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotence-Key": idempotenceKey,
+          },
+        }
+      );
+  
+      return response.data;
+    } catch (err: any) {
+      console.error("YooKassa ERROR:", err.response?.data || err.message);
+      throw new Error(
+        err.response?.data?.description || "YooKassa payment creation failed"
+      );
+    }
   }
+
+  private async getYooKassaPayment(paymentId: string) {
+    const shopId = process.env.YKASSA_SHOP_ID?.trim();
+    const secretKey = process.env.YKASSA_SECRET_KEY?.trim();
+  
+    if (!shopId || !secretKey) {
+      throw new Error("YooKassa credentials are not configured");
+    }
+  
+    try {
+      const response = await axios.get(
+        `https://api.yookassa.ru/v3/payments/${paymentId}`,
+        {
+          auth: {
+            username: shopId,
+            password: secretKey,
+          },
+        }
+      );
+  
+      return response.data;
+    } catch (err: any) {
+      console.error("YooKassa GET ERROR:", err.response?.data || err.message);
+      throw new Error(
+        err.response?.data?.description || "Failed to fetch payment"
+      );
+    }
+  }
+  
+  
 
   async createCheckout(checkoutData: any, token: any, apiToken: any) {
     const {
@@ -151,7 +187,6 @@ export class CheckoutService {
 
     const savedOrder = await this.orderRepository.save(order);
 
-  
     let paymentUrl: string | null = null;
 
     if (paymentMethod === "bankCard") {
@@ -171,35 +206,38 @@ export class CheckoutService {
   async handleYooKassaCallback(body: any) {
     const event = body.event;
     const payment = body.object;
-
-    if (!payment) return;
-
-    const metadata = payment.metadata || {};
-    const orderId = metadata.orderId;
-
-    if (!orderId) {
-      // ничего не знаем про заказ — просто игнор
-      return;
-    }
-
+  
+    if (!payment?.id || !payment.metadata?.orderId) return;
+  
+    const orderId = Number(payment.metadata.orderId);
     const order = await this.orderRepository.findOne({
       where: { orderId },
       relations: ["checkout"],
     });
-
+  
     if (!order) return;
-
-    if (event === "payment.succeeded" && payment.status === "succeeded") {
-      order.status = "approved";
-      await this.orderRepository.save(order);
-    } else if (event === "payment.canceled") {
+  
+    // Дополнительно: проверим статус платежа напрямую
+    if (event === "payment.succeeded") {
+      try {
+        const yookassaPayment = await this.getYooKassaPayment(payment.id);
+        if (yookassaPayment.status === "succeeded" && yookassaPayment.paid) {
+          order.status = "approved";
+          await this.orderRepository.save(order);
+        }
+      } catch (err) {
+        console.error("Failed to verify payment with YooKassa:", err);
+        // Не меняем статус, если не уверены
+      }
+    }
+  
+    if (event === "payment.canceled") {
       order.status = "rejected";
       await this.orderRepository.save(order);
+  
       const checkout = order.checkout;
       if (checkout?.user) {
-        const user = await this.userRepository.findOne({
-          where: { id: checkout.user.id },
-        });
+        const user = await this.userRepository.findOneBy({ id: checkout.user.id });
         if (user) {
           user.cart = [];
           user.cart_summary = 0;
@@ -207,8 +245,6 @@ export class CheckoutService {
         }
       }
     }
-
-    // другие статусы можно при желании обработать
   }
 
   async getAllOrders(
