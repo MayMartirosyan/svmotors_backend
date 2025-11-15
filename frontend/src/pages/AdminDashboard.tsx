@@ -39,7 +39,7 @@ const AdminDashboard: React.FC = () => {
   return (
     <div>
       <h2 className="text-2xl font-serif text-slate-800 mb-4">
-        Добро пожаловать в админ панель SVMotors
+        Добро пожаловать в админ панель Kas Auto 
       </h2>
       <div className="grid grid-cols-2 gap-4">
         {dashboardItems.map((item) => (

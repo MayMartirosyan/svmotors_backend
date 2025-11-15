@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { BASE_URL, cleanPrice } from "../../utils";
+import { BASE_URL, TRANSLATE_WORDS, cleanPrice } from "../../utils";
 import { useDebounce } from "../../hooks/useDebounce";
 import Button from "../../uikit/Button";
 import Input from "../../uikit/Input";
@@ -108,7 +108,7 @@ const Orders: React.FC = () => {
                 <TableCell>{order.orderId}</TableCell>
                 <TableCell>{order.checkout?.name || "N/A"}</TableCell>
                 <TableCell>{order.checkout?.tel || "N/A"}</TableCell>
-                <TableCell>{order.status}</TableCell>
+                <TableCell>{TRANSLATE_WORDS[order?.status]}</TableCell>
                 <TableCell>{cleanPrice(order.totalAmount)} ₽</TableCell>
                 
                 <TableCell>{new Date(order.createdAt).toLocaleString()}</TableCell>

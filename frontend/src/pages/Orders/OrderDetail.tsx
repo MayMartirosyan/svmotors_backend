@@ -82,7 +82,7 @@ const OrderDetail: React.FC = () => {
                 : "bg-red-100 text-red-800"
             }`}
           >
-            {status === "approved" ? "Одобрен" : 
+            {status === "approved" ? "Оплачено" : 
              status === "pending" ? "Ожидает оплаты" : "Отклонён"}
           </span>
 
@@ -94,7 +94,7 @@ const OrderDetail: React.FC = () => {
               className="ml-2 px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#4CAF50]"
             >
               <option value="pending">Ожидает оплаты</option>
-              <option value="approved">Одобрен</option>
+              <option value="approved">Оплачено</option>
               <option value="rejected">Отклонён</option>
             </select>
           )}

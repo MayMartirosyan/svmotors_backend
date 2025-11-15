@@ -103,7 +103,6 @@ const Products: React.FC = () => {
               "Скидочная цена",
               "Новинка",
               "Категория",
-              "Пользователь",
               "Действия",
             ]}
           >
@@ -133,11 +132,6 @@ const Products: React.FC = () => {
                 <TableCell>{product.isNew ? "Да" : "Нет"}</TableCell>
                 <TableCell>
                   {product.category?.name || "Нет категории"}
-                </TableCell>
-                <TableCell>
-                  {product.user
-                    ? `${product.user.name} ${product.user.surname}`
-                    : "Нет пользователя"}
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-2">
