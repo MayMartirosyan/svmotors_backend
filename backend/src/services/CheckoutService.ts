@@ -60,8 +60,6 @@ export class CheckoutService {
     const shopId = process.env.YKASSA_SHOP_ID?.trim();
     const secretKey = process.env.YKASSA_SECRET_KEY?.trim();
 
-    console.log(shopId, secretKey, "qweqweeq");
-
     if (!shopId || !secretKey) {
       throw new Error("YooKassa credentials are not configured");
     }
@@ -204,9 +202,9 @@ export class CheckoutService {
   }
 
   async handleYooKassaCallback(body: any) {
-    console.log("YooKassa webhook received:", JSON.stringify(body, null, 2)); // Лог всего тела
+    console.log("YooKassa webhook received:", JSON.stringify(body, null, 2));
 
-    const { type, event, object: payment } = body; // Стандартный парсинг из доки
+    const { type, event, object: payment } = body;
 
     if (type !== "notification") {
       console.log("Invalid notification type:", type);
@@ -234,8 +232,7 @@ export class CheckoutService {
       return;
     }
 
-    // Опционально: Верификация статуса через GET (как в доках рекомендуют)
-    let yookassaPayment = payment; // Используем из уведомления
+    let yookassaPayment = payment;
     try {
       yookassaPayment = await this.getYooKassaPayment(payment.id);
       console.log("Verified payment status from GET:", yookassaPayment.status);
@@ -255,10 +252,7 @@ export class CheckoutService {
       const checkout = order.checkout;
 
       if (checkout?.user) {
-        // Авторизованный пользователь
-        const user = await this.userRepository.findOneBy({
-          id: checkout.user.id,
-        });
+        const user = await this.userRepository.findOneBy({ id: checkout.user.id });
         if (user) {
           user.cart = [];
           user.cart_summary = 0;
@@ -266,39 +260,38 @@ export class CheckoutService {
           console.log("Cart cleared for user:", user.id);
         }
       } else {
-        // Гость — ищем по email (он содержит apiToken)
         const guestEmail = checkout?.email;
         if (guestEmail && guestEmail.includes("anonymous+")) {
-          const apiToken = guestEmail
-            .split("anonymous+")[1]
-            .split("@")[0]
-            .replace(/[^a-z0-9-]/g, "-");
+          const rawToken = guestEmail.split("anonymous+")[1].split("@")[0];
+          const apiToken = rawToken.replace(/[^a-z0-9-]/g, ""); // Убираем всё, кроме букв и цифр
+
           const guest = await this.userRepository.findOne({
             where: { api_token: apiToken },
           });
+
           if (guest) {
             guest.cart = [];
             guest.cart_summary = 0;
             await this.userRepository.save(guest);
             console.log("Cart cleared for guest (apiToken):", apiToken);
+          } else {
+            console.warn("Guest not found by apiToken:", apiToken);
           }
         }
       }
     } else if (event === "payment.canceled") {
+      console.log("Payment canceled — removing order:", orderId);
       await this.orderRepository.remove(order);
+
       if (order.checkout) {
         const relatedOrders = await this.orderRepository.find({
           where: { checkout: { id: order.checkout.id } },
         });
         if (relatedOrders.length === 0) {
           await this.checkoutRepository.remove(order.checkout);
+          console.log("Checkout removed:", order.checkout.id);
         }
       }
-
-      console.log(
-        "Order and checkout cleaned up for canceled payment:",
-        orderId
-      );
     } else {
       console.log("Unhandled event:", event, "status:", yookassaPayment.status);
     }
@@ -326,11 +319,9 @@ export class CheckoutService {
     }
   }
 
-  async getAllOrders(
-    page: number = 1,
-    limit: number = 24,
-    search: string = ""
-  ) {
+  // ... остальные методы без изменений (getAllOrders, getUserOrders, etc.)
+  // ОСТАВЬ ВСЁ НИЖЕ КАК ЕСТЬ — ОНИ НЕ МЕНЯЮТСЯ
+  async getAllOrders(page: number = 1, limit: number = 24, search: string = "") {
     try {
       const query = this.orderRepository
         .createQueryBuilder("order")
@@ -339,14 +330,10 @@ export class CheckoutService {
         .skip((page - 1) * limit)
         .take(limit);
 
-      // Поиск по orderId или user.name
       if (search) {
         query.where(
           "(CAST(order.orderId AS TEXT) LIKE :search OR user.name ILIKE :searchLike)",
-          {
-            search: `%${search}%`,
-            searchLike: `%${search}%`,
-          }
+          { search: `%${search}%`, searchLike: `%${search}%` }
         );
       }
 
@@ -358,9 +345,7 @@ export class CheckoutService {
   }
 
   async getUserOrders(token: string) {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      id: number;
-    };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: number };
     const userId = decoded.id;
 
     const orders = await this.orderRepository.find({
@@ -373,9 +358,7 @@ export class CheckoutService {
       if (order.checkout?.cartItems) {
         order.checkout.cartItems = await Promise.all(
           order.checkout.cartItems.map(async (item: any) => {
-            const product = await this.productRepository.findOneBy({
-              id: item.productId,
-            });
+            const product = await this.productRepository.findOneBy({ id: item.productId });
             return {
               ...item,
               product: product
@@ -407,9 +390,7 @@ export class CheckoutService {
       if (order.checkout && order.checkout.cartItems) {
         order.checkout.cartItems = await Promise.all(
           order.checkout.cartItems.map(async (item: any) => {
-            const product = await this.productRepository.findOneBy({
-              id: item.productId,
-            });
+            const product = await this.productRepository.findOneBy({ id: item.productId });
             return {
               ...item,
               product: product
@@ -463,14 +444,10 @@ export class CheckoutService {
     }
   }
 
-  private async calculateTotalAmount(
-    cartItems: { productId: number; qty: number }[]
-  ) {
+  private async calculateTotalAmount(cartItems: { productId: number; qty: number }[]) {
     let total = 0;
     for (const item of cartItems) {
-      const product = await this.productRepository.findOneBy({
-        id: item.productId,
-      });
+      const product = await this.productRepository.findOneBy({ id: item.productId });
       if (product) {
         const price = product.discounted_price || product.price;
         total += price * item.qty;
