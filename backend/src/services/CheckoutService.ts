@@ -59,17 +59,19 @@ export class CheckoutService {
   ) {
     const shopId = process.env.YKASSA_SHOP_ID?.trim();
     const secretKey = process.env.YKASSA_SECRET_KEY?.trim();
-  
 
-    console.log(shopId,secretKey,'qweqweeq');
-    
+    console.log(shopId, secretKey, "qweqweeq");
+
     if (!shopId || !secretKey) {
       throw new Error("YooKassa credentials are not configured");
     }
-  
+
     const idempotenceKey = `${orderId}-${Date.now()}`;
-    const returnUrl = `${process.env.YKASSA_RETURN_URL || "https://kolesnicaauto.ru/order-confirmation"}?orderId=${orderId}`;
-  
+    const returnUrl = `${
+      process.env.YKASSA_RETURN_URL ||
+      "https://kolesnicaauto.ru/order-confirmation"
+    }?orderId=${orderId}`;
+
     const body = {
       amount: {
         value: totalAmount.toFixed(2),
@@ -83,7 +85,7 @@ export class CheckoutService {
       description,
       metadata: { orderId },
     };
-  
+
     try {
       const response = await axios.post(
         "https://api.yookassa.ru/v3/payments",
@@ -99,7 +101,7 @@ export class CheckoutService {
           },
         }
       );
-  
+
       return response.data;
     } catch (err: any) {
       console.error("YooKassa ERROR:", err.response?.data || err.message);
@@ -112,11 +114,11 @@ export class CheckoutService {
   private async getYooKassaPayment(paymentId: string) {
     const shopId = process.env.YKASSA_SHOP_ID?.trim();
     const secretKey = process.env.YKASSA_SECRET_KEY?.trim();
-  
+
     if (!shopId || !secretKey) {
       throw new Error("YooKassa credentials are not configured");
     }
-  
+
     try {
       const response = await axios.get(
         `https://api.yookassa.ru/v3/payments/${paymentId}`,
@@ -127,7 +129,7 @@ export class CheckoutService {
           },
         }
       );
-  
+
       return response.data;
     } catch (err: any) {
       console.error("YooKassa GET ERROR:", err.response?.data || err.message);
@@ -136,8 +138,6 @@ export class CheckoutService {
       );
     }
   }
-  
-  
 
   async createCheckout(checkoutData: any, token: any, apiToken: any) {
     const {
@@ -204,45 +204,108 @@ export class CheckoutService {
   }
 
   async handleYooKassaCallback(body: any) {
-    const event = body.event;
-    const payment = body.object;
-  
-    if (!payment?.id || !payment.metadata?.orderId) return;
-  
+    console.log("YooKassa webhook received:", JSON.stringify(body, null, 2)); // Лог всего тела
+
+    const { type, event, object: payment } = body; // Стандартный парсинг из доки
+
+    if (type !== "notification") {
+      console.log("Invalid notification type:", type);
+      return;
+    }
+
+    if (!payment?.id || !payment.metadata?.orderId) {
+      console.log("Missing payment.id or metadata.orderId:", {
+        id: payment?.id,
+        orderId: payment?.metadata?.orderId,
+      });
+      return;
+    }
+
     const orderId = Number(payment.metadata.orderId);
+    console.log("Processing orderId:", orderId, "event:", event);
+
     const order = await this.orderRepository.findOne({
       where: { orderId },
       relations: ["checkout"],
     });
-  
-    if (!order) return;
-  
-    // Дополнительно: проверим статус платежа напрямую
-    if (event === "payment.succeeded") {
-      try {
-        const yookassaPayment = await this.getYooKassaPayment(payment.id);
-        if (yookassaPayment.status === "succeeded" && yookassaPayment.paid) {
-          order.status = "approved";
-          await this.orderRepository.save(order);
-        }
-      } catch (err) {
-        console.error("Failed to verify payment with YooKassa:", err);
-        // Не меняем статус, если не уверены
-      }
+
+    if (!order) {
+      console.log("Order not found:", orderId);
+      return;
     }
-  
-    if (event === "payment.canceled") {
-      order.status = "rejected";
+
+    // Опционально: Верификация статуса через GET (как в доках рекомендуют)
+    let yookassaPayment = payment; // Используем из уведомления
+    try {
+      yookassaPayment = await this.getYooKassaPayment(payment.id);
+      console.log("Verified payment status from GET:", yookassaPayment.status);
+    } catch (err) {
+      console.error("GET verification failed, using notification data:", err);
+    }
+
+    if (
+      event === "payment.succeeded" &&
+      yookassaPayment.status === "succeeded" &&
+      yookassaPayment.paid
+    ) {
+      console.log("Approving order:", orderId);
+      order.status = "approved";
       await this.orderRepository.save(order);
-  
+
+      // Очистка корзины только при успехе
       const checkout = order.checkout;
       if (checkout?.user) {
-        const user = await this.userRepository.findOneBy({ id: checkout.user.id });
+        const user = await this.userRepository.findOneBy({
+          id: checkout.user.id,
+        });
         if (user) {
           user.cart = [];
           user.cart_summary = 0;
           await this.userRepository.save(user);
+          console.log("Cart cleared for user:", user.id);
         }
+      }
+    } else if (event === "payment.canceled") {
+      console.log("Payment canceled, deleting order:", orderId);
+      // order.status = "rejected";
+      // await this.orderRepository.save(order);
+      await this.orderRepository.remove(order);
+      if (order.checkout) {
+        const relatedOrders = await this.orderRepository.find({
+          where: { checkout: { id: order.checkout.id } },
+        });
+        if (relatedOrders.length === 0) {
+          await this.checkoutRepository.remove(order.checkout);
+        }
+      }
+
+      console.log(
+        "Order and checkout cleaned up for canceled payment:",
+        orderId
+      );
+    } else {
+      console.log("Unhandled event:", event, "status:", yookassaPayment.status);
+    }
+
+    console.log("Webhook processed successfully for order:", orderId);
+  }
+
+  async cancelOrder(orderId: number) {
+    const order = await this.orderRepository.findOne({
+      where: { orderId },
+      relations: ["checkout"],
+    });
+
+    if (!order) return;
+
+    await this.orderRepository.remove(order);
+
+    if (order.checkout) {
+      const relatedOrders = await this.orderRepository.find({
+        where: { checkout: { id: order.checkout.id } },
+      });
+      if (relatedOrders.length === 0) {
+        await this.checkoutRepository.remove(order.checkout);
       }
     }
   }

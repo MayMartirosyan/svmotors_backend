@@ -38,6 +38,40 @@ export class CheckoutController {
     }
   }
 
+  async yookassaCallback(req: Request, res: Response) {
+    try {
+
+      // const expectedLogin = process.env.YKASSA_WEBHOOK_LOGIN;
+      // const expectedPassword = process.env.YKASSA_WEBHOOK_PASSWORD;
+  
+      // if (expectedLogin && expectedPassword) {
+      //   const authHeader = req.headers.authorization || "";
+      //   const expected = "Basic " + Buffer.from(`${expectedLogin}:${expectedPassword}`).toString("base64");
+      //   if (authHeader !== expected) {
+      //     return res.status(401).send("Unauthorized");
+      //   }
+      // }
+  
+      await this.checkoutService.handleYooKassaCallback(req.body);
+      res.status(200).send("OK");
+    } catch (error: any) {
+      console.error("YooKassa callback error:", error);
+      res.status(500).send("Error");
+    }
+  }
+
+  async cancelCheckout(req: Request, res: Response) {
+    try {
+      const { orderId } = req.body;
+      if (!orderId) throw new Error("orderId required");
+  
+      await this.checkoutService.cancelOrder(orderId);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
   async getAllOrders(req: Request, res: Response) {
     try {
       const page = parseInt(req.query.page as string) || 1;
@@ -59,27 +93,7 @@ export class CheckoutController {
     }
   }
 
-  async yookassaCallback(req: Request, res: Response) {
-    try {
-
-      const expectedLogin = process.env.YKASSA_WEBHOOK_LOGIN;
-      const expectedPassword = process.env.YKASSA_WEBHOOK_PASSWORD;
-  
-      if (expectedLogin && expectedPassword) {
-        const authHeader = req.headers.authorization || "";
-        const expected = "Basic " + Buffer.from(`${expectedLogin}:${expectedPassword}`).toString("base64");
-        if (authHeader !== expected) {
-          return res.status(401).send("Unauthorized");
-        }
-      }
-  
-      await this.checkoutService.handleYooKassaCallback(req.body);
-      res.status(200).send("OK");
-    } catch (error: any) {
-      console.error("YooKassa callback error:", error);
-      res.status(500).send("Error");
-    }
-  }
+ 
 
   async getUserOrders(req: Request, res: Response) {
     try {
