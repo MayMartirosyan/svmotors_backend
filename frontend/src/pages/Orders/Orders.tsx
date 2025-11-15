@@ -62,7 +62,7 @@ const Orders: React.FC = () => {
   const handleDeleteOrder = async (orderId: number) => {
     if (!confirm("Вы уверены, что хотите удалить этот заказ?")) return;
     try {
-      await axios.delete(`${BASE_URL}/api/orders/${orderId}`);
+      await axios.delete(`${BASE_URL}/api/checkout/orders/${orderId}`);
       toast.success("Заказ удален");
       fetchOrders(searchValue, page);
     } catch (error) {
