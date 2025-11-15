@@ -248,13 +248,14 @@ export class CheckoutService {
       yookassaPayment.status === "succeeded" &&
       yookassaPayment.paid
     ) {
-      console.log("Approving order:", orderId);
       order.status = "approved";
       await this.orderRepository.save(order);
 
-      // Очистка корзины только при успехе
+      // ОЧИСТКА КОРЗИНЫ: авторизованный или гость
       const checkout = order.checkout;
+
       if (checkout?.user) {
+        // Авторизованный пользователь
         const user = await this.userRepository.findOneBy({
           id: checkout.user.id,
         });
@@ -264,11 +265,26 @@ export class CheckoutService {
           await this.userRepository.save(user);
           console.log("Cart cleared for user:", user.id);
         }
+      } else {
+        // Гость — ищем по email (он содержит apiToken)
+        const guestEmail = checkout?.email;
+        if (guestEmail && guestEmail.includes("anonymous+")) {
+          const apiToken = guestEmail
+            .split("anonymous+")[1]
+            .split("@")[0]
+            .replace(/[^a-z0-9-]/g, "-");
+          const guest = await this.userRepository.findOne({
+            where: { api_token: apiToken },
+          });
+          if (guest) {
+            guest.cart = [];
+            guest.cart_summary = 0;
+            await this.userRepository.save(guest);
+            console.log("Cart cleared for guest (apiToken):", apiToken);
+          }
+        }
       }
     } else if (event === "payment.canceled") {
-      console.log("Payment canceled, deleting order:", orderId);
-      // order.status = "rejected";
-      // await this.orderRepository.save(order);
       await this.orderRepository.remove(order);
       if (order.checkout) {
         const relatedOrders = await this.orderRepository.find({
