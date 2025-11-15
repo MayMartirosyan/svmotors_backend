@@ -39,6 +39,9 @@ export class Checkout {
   @Column({ type: "decimal", precision: 10, scale: 2, nullable: false })
   totalAmount!: number;
 
+  @Column({ type: "varchar", length: 255, nullable: true })
+  apiToken?: string;
+
   @Column({ type: "json", nullable: false })
   cartItems!: { productId: number; qty: number }[];
 
@@ -52,7 +55,7 @@ export class Checkout {
 
   @OneToMany(() => Order, (order) => order.checkout)
   orders!: Order[];
-  
+
   @Column({ type: "varchar", length: 50, nullable: false })
   paymentMethod!: "cash" | "bankCard";
 

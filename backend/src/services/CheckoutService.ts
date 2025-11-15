@@ -173,6 +173,7 @@ export class CheckoutService {
       totalAmount,
       cartItems,
       user: token ? user : undefined,
+      apiToken: apiToken || undefined,
     });
 
     const savedCheckout = await this.checkoutRepository.save(checkout);
@@ -203,14 +204,14 @@ export class CheckoutService {
 
   async handleYooKassaCallback(body: any) {
     console.log("YooKassa webhook received:", JSON.stringify(body, null, 2));
-
+  
     const { type, event, object: payment } = body;
-
+  
     if (type !== "notification") {
       console.log("Invalid notification type:", type);
       return;
     }
-
+  
     if (!payment?.id || !payment.metadata?.orderId) {
       console.log("Missing payment.id or metadata.orderId:", {
         id: payment?.id,
@@ -218,20 +219,20 @@ export class CheckoutService {
       });
       return;
     }
-
+  
     const orderId = Number(payment.metadata.orderId);
     console.log("Processing orderId:", orderId, "event:", event);
-
+  
     const order = await this.orderRepository.findOne({
       where: { orderId },
-      relations: ["checkout"],
+      relations: ["checkout", "checkout.user"],
     });
-
+  
     if (!order) {
       console.log("Order not found:", orderId);
       return;
     }
-
+  
     let yookassaPayment = payment;
     try {
       yookassaPayment = await this.getYooKassaPayment(payment.id);
@@ -239,7 +240,7 @@ export class CheckoutService {
     } catch (err) {
       console.error("GET verification failed, using notification data:", err);
     }
-
+  
     if (
       event === "payment.succeeded" &&
       yookassaPayment.status === "succeeded" &&
@@ -247,10 +248,10 @@ export class CheckoutService {
     ) {
       order.status = "approved";
       await this.orderRepository.save(order);
-
-      // ОЧИСТКА КОРЗИНЫ: авторизованный или гость
+  
       const checkout = order.checkout;
-
+  
+      // === АВТОРИЗОВАННЫЙ ЮЗЕР ===
       if (checkout?.user) {
         const user = await this.userRepository.findOneBy({ id: checkout.user.id });
         if (user) {
@@ -259,30 +260,27 @@ export class CheckoutService {
           await this.userRepository.save(user);
           console.log("Cart cleared for user:", user.id);
         }
-      } else {
-        const guestEmail = checkout?.email;
-        if (guestEmail && guestEmail.includes("anonymous+")) {
-          const rawToken = guestEmail.split("anonymous+")[1].split("@")[0];
-          const apiToken = rawToken.replace(/[^a-z0-9-]/g, ""); // Убираем всё, кроме букв и цифр
-
-          const guest = await this.userRepository.findOne({
-            where: { api_token: apiToken },
-          });
-
-          if (guest) {
-            guest.cart = [];
-            guest.cart_summary = 0;
-            await this.userRepository.save(guest);
-            console.log("Cart cleared for guest (apiToken):", apiToken);
-          } else {
-            console.warn("Guest not found by apiToken:", apiToken);
-          }
+      }
+      // === ГОСТЬ ПО apiToken ===
+      else if (checkout?.apiToken) {
+        const guest = await this.userRepository.findOne({
+          where: { api_token: checkout.apiToken },
+        });
+        if (guest) {
+          guest.cart = [];
+          guest.cart_summary = 0;
+          await this.userRepository.save(guest);
+          console.log("Cart cleared for guest (apiToken):", checkout.apiToken);
+        } else {
+          console.warn("Guest not found by apiToken:", checkout.apiToken);
         }
       }
-    } else if (event === "payment.canceled") {
+    }
+    // === ОТМЕНА ОПЛАТЫ ===
+    else if (event === "payment.canceled") {
       console.log("Payment canceled — removing order:", orderId);
       await this.orderRepository.remove(order);
-
+  
       if (order.checkout) {
         const relatedOrders = await this.orderRepository.find({
           where: { checkout: { id: order.checkout.id } },
@@ -292,10 +290,12 @@ export class CheckoutService {
           console.log("Checkout removed:", order.checkout.id);
         }
       }
-    } else {
+    }
+    // === ДРУГИЕ СОБЫТИЯ ===
+    else {
       console.log("Unhandled event:", event, "status:", yookassaPayment.status);
     }
-
+  
     console.log("Webhook processed successfully for order:", orderId);
   }
 
@@ -318,9 +318,7 @@ export class CheckoutService {
       }
     }
   }
-
-  // ... остальные методы без изменений (getAllOrders, getUserOrders, etc.)
-  // ОСТАВЬ ВСЁ НИЖЕ КАК ЕСТЬ — ОНИ НЕ МЕНЯЮТСЯ
+  
   async getAllOrders(page: number = 1, limit: number = 24, search: string = "") {
     try {
       const query = this.orderRepository
