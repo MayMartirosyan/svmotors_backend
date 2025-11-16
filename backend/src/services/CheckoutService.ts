@@ -149,18 +149,15 @@ export class CheckoutService {
       cartItems,
       paymentMethod,
     } = checkoutData;
-
-    const user = await this.resolveUser(token, apiToken, [
-      "cart",
-      "cart.product",
-    ]);
-
+  
+    const user = await this.resolveUser(token, apiToken, ["cart", "cart.product"]);
+  
     if (!cartItems || cartItems.length === 0) {
       throw new Error("Корзина пуста");
     }
-
+  
     const totalAmount = await this.calculateTotalAmount(cartItems);
-
+  
     const checkout = this.checkoutRepository.create({
       name,
       surname,
@@ -175,30 +172,47 @@ export class CheckoutService {
       user: token ? user : undefined,
       apiToken: apiToken || undefined,
     });
-
+  
     const savedCheckout = await this.checkoutRepository.save(checkout);
-
+  
     const order = this.orderRepository.create({
       status: "pending",
       totalAmount,
       checkout: savedCheckout,
     });
-
+  
     const savedOrder = await this.orderRepository.save(order);
-
+  
     let paymentUrl: string | null = null;
-
+  
+    if (paymentMethod === "cash") {
+      if (token) {
+        user.cart = [];
+        user.cart_summary = 0;
+        await this.userRepository.save(user);
+        console.log("Cart cleared for user (cash):", user.id);
+      } else if (apiToken) {
+        const guest = await this.userRepository.findOne({ where: { api_token: apiToken } });
+        if (guest) {
+          guest.cart = [];
+          guest.cart_summary = 0;
+          await this.userRepository.save(guest);
+          console.log("Cart cleared for guest (cash):", apiToken);
+        }
+      }
+    }
+  
     if (paymentMethod === "bankCard") {
       const payment = await this.createYooKassaPayment(
         totalAmount,
         savedOrder.orderId,
         `Оплата заказа №${savedOrder.orderId}`
       );
-
+  
       paymentUrl = payment?.confirmation?.confirmation_url;
       if (!paymentUrl) throw new Error("Не удалось получить URL оплаты");
     }
-
+  
     return { checkout: savedCheckout, order: savedOrder, paymentUrl };
   }
 
@@ -318,7 +332,7 @@ export class CheckoutService {
       }
     }
   }
-  
+
   async getAllOrders(page: number = 1, limit: number = 24, search: string = "") {
     try {
       const query = this.orderRepository
