@@ -67,7 +67,7 @@ export const orderReceiptTemplate = (
           (i) => `
         <div style="display:flex;align-items:center;margin-bottom:15px;">
           <img src="${
-            i.product.productImage.medium
+            i?.product?.product_image?.medium
           }" width="70" style="border-radius:6px;margin-right:12px;"/>
           <div style="font-size:14px;">
               <div><strong>${i.product.name}</strong></div>
@@ -98,7 +98,10 @@ export const cashOrderTemplate = (
   totalAmount: number
 ) => `
     <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
-      <h2 style="color:#5CB85C;text-align:center;">Ваш заказ №${orderId} оформлен!</h2>
+      <div style="text-align:center;">
+        <img src="https://kolesnicaauto.ru/logo.svg" width="110" />
+        <h2 style="color:#5CB85C;text-align:center;">Ваш заказ №${orderId} оформлен!</h2>
+      </div>
       <p style="font-size:15px;color:#333;text-align:center;">
         Вы выбрали оплату наличными.  
         Заберите заказ и оплатите его на месте.
@@ -116,7 +119,7 @@ export const cashOrderTemplate = (
           (i) => `
         <div style="display:flex;align-items:center;margin-bottom:15px;">
           <img src="${
-            i.product.product_image
+            i?.product?.product_image?.medium
           }" width="70" style="border-radius:6px;margin-right:12px;"/>
           <div style="font-size:14px;">
               <div><strong>${i.product.name}</strong></div>
