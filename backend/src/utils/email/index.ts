@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 
 export const mailer = nodemailer.createTransport({
-  host: "smtp.reg.ru",
+  host: "mail.hosting.reg.ru",
   port: 465,
   secure: true,
   auth: {
