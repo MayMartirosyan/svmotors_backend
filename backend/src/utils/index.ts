@@ -45,3 +45,15 @@ export function toSnakeCase<T>(obj: T): T {
     return result;
   }, {} as T);
 }
+
+export function cleanPrice(priceStr: string | undefined): number {
+  if (!priceStr) return 0;
+
+  const cleaned = String(priceStr)
+    .replace(/[^\d.,]/g, "")
+    .replace(",", ".");
+
+  const value = parseFloat(cleaned);
+
+  return Math.floor(isNaN(value) ? 0 : value);
+}

@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { cleanPrice } from "..";
 
 // export const mailer = nodemailer.createTransport({
 //   host: "mail.hosting.reg.ru",
@@ -38,7 +39,7 @@ export const orderReceiptTemplate = (
     <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
       
       <div style="text-align:center;">
-        <img src="https://kolesnicaauto.ru/logo.svg" width="110" />
+        <img src="https://kolesnicaauto.ru/logo2.png" width="110" />
         <h2 style="color:#5CB85C;margin-bottom:5px;">Спасибо за ваш заказ!</h2>
         <p style="font-size:15px;color:#333;">Ваш чек по заказу №${orderId}</p>
       </div>
@@ -73,7 +74,7 @@ export const orderReceiptTemplate = (
               <div><strong>${i.product.name}</strong></div>
               <div>Кол-во: ${i.qty}</div>
               <div style="color:#5CB85C;">Цена: ${
-                i.product.discounted_price || i.product.price
+                cleanPrice(i?.product?.discounted_price) || cleanPrice(i?.product?.price)
               } ₽</div>
           </div>
         </div>
@@ -83,7 +84,7 @@ export const orderReceiptTemplate = (
   
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
   
-      <h2 style="text-align:right;color:#5CB85C;">Итого: ${totalAmount} ₽</h2>
+      <h2 style="text-align:right;color:#5CB85C;">Итого: ${cleanPrice(totalAmount as unknown as string)} ₽</h2>
   
       <p style="text-align:center;color:#888;margin-top:25px;font-size:12px;">
         Это автоматическое письмо. Пожалуйста, не отвечайте на него.
@@ -99,7 +100,7 @@ export const cashOrderTemplate = (
 ) => `
     <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
       <div style="text-align:center;">
-        <img src="https://kolesnicaauto.ru/logo.svg" width="110" />
+        <img src="https://kolesnicaauto.ru/logo2.png" width="110" />
         <h2 style="color:#5CB85C;text-align:center;">Ваш заказ №${orderId} оформлен!</h2>
       </div>
       <p style="font-size:15px;color:#333;text-align:center;">
@@ -125,7 +126,8 @@ export const cashOrderTemplate = (
               <div><strong>${i.product.name}</strong></div>
               <div>Кол-во: ${i.qty}</div>
               <div style="color:#5CB85C;">Цена: ${
-                i.product.discounted_price || i.product.price
+                cleanPrice(i.product.discounted_price) ||
+                cleanPrice(i.product.price)
               } ₽</div>
           </div>
         </div>
@@ -134,6 +136,6 @@ export const cashOrderTemplate = (
         .join("")}
   
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
-      <h2 style="text-align:right;color:#5CB85C;">Итого: ${totalAmount} ₽</h2>
+      <h2 style="text-align:right;color:#5CB85C;">Итого: ${cleanPrice(totalAmount as unknown as string)} ₽</h2>
     </div>
   `;
