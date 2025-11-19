@@ -6,6 +6,7 @@ import { Product } from "../entities/Product";
 import * as jwt from "jsonwebtoken";
 import { Not, ILike } from "typeorm";
 import axios from "axios";
+import { cashOrderTemplate, mailer, orderReceiptTemplate } from "../utils/email";
 
 export class CheckoutService {
   private checkoutRepository = AppDataSource.getRepository(Checkout);
@@ -149,15 +150,18 @@ export class CheckoutService {
       cartItems,
       paymentMethod,
     } = checkoutData;
-  
-    const user = await this.resolveUser(token, apiToken, ["cart", "cart.product"]);
-  
+
+    const user = await this.resolveUser(token, apiToken, [
+      "cart",
+      "cart.product",
+    ]);
+
     if (!cartItems || cartItems.length === 0) {
       throw new Error("Корзина пуста");
     }
-  
+
     const totalAmount = await this.calculateTotalAmount(cartItems);
-  
+
     const checkout = this.checkoutRepository.create({
       name,
       surname,
@@ -172,19 +176,20 @@ export class CheckoutService {
       user: token ? user : undefined,
       apiToken: apiToken || undefined,
     });
-  
+
     const savedCheckout = await this.checkoutRepository.save(checkout);
-  
+
     const order = this.orderRepository.create({
       status: "pending",
       totalAmount,
       checkout: savedCheckout,
     });
-  
+
     const savedOrder = await this.orderRepository.save(order);
-  
+
     let paymentUrl: string | null = null;
-  
+
+    // === ОПЛАТА НАЛИЧНЫМИ ===
     if (paymentMethod === "cash") {
       if (token) {
         user.cart = [];
@@ -192,7 +197,9 @@ export class CheckoutService {
         await this.userRepository.save(user);
         console.log("Cart cleared for user (cash):", user.id);
       } else if (apiToken) {
-        const guest = await this.userRepository.findOne({ where: { api_token: apiToken } });
+        const guest = await this.userRepository.findOne({
+          where: { api_token: apiToken },
+        });
         if (guest) {
           guest.cart = [];
           guest.cart_summary = 0;
@@ -200,32 +207,61 @@ export class CheckoutService {
           console.log("Cart cleared for guest (cash):", apiToken);
         }
       }
+
+      // Письмо покупателю про оплату наличными
+      try {
+        const itemsWithProducts = await Promise.all(
+          cartItems.map(async (item: any) => {
+            const product = await this.productRepository.findOneBy({
+              id: item.productId,
+            });
+            return { ...item, product };
+          })
+        );
+
+        await mailer.sendMail({
+          from: "noreply@kolesnicaauto.ru",
+          to: email,
+          subject: `Заказ №${savedOrder.orderId} — оплата наличными`,
+          html: cashOrderTemplate(
+            savedOrder.orderId,
+            checkout,
+            itemsWithProducts,
+            totalAmount
+          ),
+        });
+
+        console.log("Cash order email sent:", email);
+      } catch (err) {
+        console.error("Email send error (cash):", err);
+      }
     }
-  
+
+    // === ОПЛАТА КАРТОЙ ===
     if (paymentMethod === "bankCard") {
       const payment = await this.createYooKassaPayment(
         totalAmount,
         savedOrder.orderId,
         `Оплата заказа №${savedOrder.orderId}`
       );
-  
+
       paymentUrl = payment?.confirmation?.confirmation_url;
       if (!paymentUrl) throw new Error("Не удалось получить URL оплаты");
     }
-  
+
     return { checkout: savedCheckout, order: savedOrder, paymentUrl };
   }
 
   async handleYooKassaCallback(body: any) {
     console.log("YooKassa webhook received:", JSON.stringify(body, null, 2));
-  
+
     const { type, event, object: payment } = body;
-  
+
     if (type !== "notification") {
       console.log("Invalid notification type:", type);
       return;
     }
-  
+
     if (!payment?.id || !payment.metadata?.orderId) {
       console.log("Missing payment.id or metadata.orderId:", {
         id: payment?.id,
@@ -233,20 +269,20 @@ export class CheckoutService {
       });
       return;
     }
-  
+
     const orderId = Number(payment.metadata.orderId);
     console.log("Processing orderId:", orderId, "event:", event);
-  
+
     const order = await this.orderRepository.findOne({
       where: { orderId },
       relations: ["checkout", "checkout.user"],
     });
-  
+
     if (!order) {
       console.log("Order not found:", orderId);
       return;
     }
-  
+
     let yookassaPayment = payment;
     try {
       yookassaPayment = await this.getYooKassaPayment(payment.id);
@@ -254,7 +290,7 @@ export class CheckoutService {
     } catch (err) {
       console.error("GET verification failed, using notification data:", err);
     }
-  
+
     if (
       event === "payment.succeeded" &&
       yookassaPayment.status === "succeeded" &&
@@ -262,12 +298,14 @@ export class CheckoutService {
     ) {
       order.status = "approved";
       await this.orderRepository.save(order);
-  
+
       const checkout = order.checkout;
-  
+
       // === АВТОРИЗОВАННЫЙ ЮЗЕР ===
       if (checkout?.user) {
-        const user = await this.userRepository.findOneBy({ id: checkout.user.id });
+        const user = await this.userRepository.findOneBy({
+          id: checkout.user.id,
+        });
         if (user) {
           user.cart = [];
           user.cart_summary = 0;
@@ -289,12 +327,42 @@ export class CheckoutService {
           console.warn("Guest not found by apiToken:", checkout.apiToken);
         }
       }
+
+      // === ОТПРАВКА ЧЕКА ПРИ ОПЛАТЕ КАРТОЙ ===
+      try {
+        if (checkout?.cartItems) {
+          const itemsWithProducts = await Promise.all(
+            checkout.cartItems.map(async (item: any) => {
+              const product = await this.productRepository.findOneBy({
+                id: item.productId,
+              });
+              return { ...item, product };
+            })
+          );
+
+          await mailer.sendMail({
+            from: "noreply@kolesnicaauto.ru",
+            to: checkout.email,
+            subject: `Чек по заказу №${order.orderId}`,
+            html: orderReceiptTemplate(
+              order.orderId,
+              checkout,
+              itemsWithProducts,
+              checkout.totalAmount
+            ),
+          });
+
+          console.log("Email receipt sent to:", checkout.email);
+        }
+      } catch (err) {
+        console.error("Email send error (bankCard):", err);
+      }
     }
     // === ОТМЕНА ОПЛАТЫ ===
     else if (event === "payment.canceled") {
       console.log("Payment canceled — removing order:", orderId);
       await this.orderRepository.remove(order);
-  
+
       if (order.checkout) {
         const relatedOrders = await this.orderRepository.find({
           where: { checkout: { id: order.checkout.id } },
@@ -309,7 +377,7 @@ export class CheckoutService {
     else {
       console.log("Unhandled event:", event, "status:", yookassaPayment.status);
     }
-  
+
     console.log("Webhook processed successfully for order:", orderId);
   }
 
@@ -333,7 +401,11 @@ export class CheckoutService {
     }
   }
 
-  async getAllOrders(page: number = 1, limit: number = 24, search: string = "") {
+  async getAllOrders(
+    page: number = 1,
+    limit: number = 24,
+    search: string = ""
+  ) {
     try {
       const query = this.orderRepository
         .createQueryBuilder("order")
@@ -357,7 +429,9 @@ export class CheckoutService {
   }
 
   async getUserOrders(token: string) {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: number };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+      id: number;
+    };
     const userId = decoded.id;
 
     const orders = await this.orderRepository.find({
@@ -370,7 +444,9 @@ export class CheckoutService {
       if (order.checkout?.cartItems) {
         order.checkout.cartItems = await Promise.all(
           order.checkout.cartItems.map(async (item: any) => {
-            const product = await this.productRepository.findOneBy({ id: item.productId });
+            const product = await this.productRepository.findOneBy({
+              id: item.productId,
+            });
             return {
               ...item,
               product: product
@@ -402,7 +478,9 @@ export class CheckoutService {
       if (order.checkout && order.checkout.cartItems) {
         order.checkout.cartItems = await Promise.all(
           order.checkout.cartItems.map(async (item: any) => {
-            const product = await this.productRepository.findOneBy({ id: item.productId });
+            const product = await this.productRepository.findOneBy({
+              id: item.productId,
+            });
             return {
               ...item,
               product: product
@@ -456,10 +534,14 @@ export class CheckoutService {
     }
   }
 
-  private async calculateTotalAmount(cartItems: { productId: number; qty: number }[]) {
+  private async calculateTotalAmount(
+    cartItems: { productId: number; qty: number }[]
+  ) {
     let total = 0;
     for (const item of cartItems) {
-      const product = await this.productRepository.findOneBy({ id: item.productId });
+      const product = await this.productRepository.findOneBy({
+        id: item.productId,
+      });
       if (product) {
         const price = product.discounted_price || product.price;
         total += price * item.qty;

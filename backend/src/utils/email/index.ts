@@ -1,0 +1,117 @@
+import nodemailer from "nodemailer";
+
+export const mailer = nodemailer.createTransport({
+  host: "smtp.reg.ru",
+  port: 465,
+  secure: true,
+  auth: {
+    user: "noreply@kolesnicaauto.ru",
+    pass: "2fd71823dF!",
+  },
+});
+
+export const orderReceiptTemplate = (
+  orderId: number,
+  checkout: any,
+  items: any[],
+  totalAmount: number
+) => `
+    <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
+      
+      <div style="text-align:center;">
+        <img src="https://kolesnicaauto.ru/logo.png" width="110" />
+        <h2 style="color:#5CB85C;margin-bottom:5px;">Спасибо за ваш заказ!</h2>
+        <p style="font-size:15px;color:#333;">Ваш чек по заказу №${orderId}</p>
+      </div>
+  
+      <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
+  
+      <h3 style="color:#5CB85C;margin-bottom:10px;">Информация о заказе</h3>
+  
+      <p><strong>Имя:</strong> ${checkout.name} ${checkout.surname}</p>
+      <p><strong>Email:</strong> ${checkout.email}</p>
+      <p><strong>Телефон:</strong> ${checkout.tel}</p>
+      <p><strong>Тип доставки:</strong> ${checkout.deliveryType}</p>
+  
+      ${
+        checkout.deliveryType === "replace_oil"
+          ? `<p><strong>Время:</strong> ${checkout.timeFrom} - ${checkout.timeTo}</p>`
+          : ""
+      }
+  
+      <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
+  
+      <h3 style="color:#5CB85C">Товары:</h3>
+  
+      ${items
+        .map(
+          (i) => `
+        <div style="display:flex;align-items:center;margin-bottom:15px;">
+          <img src="${
+            i.product.product_image
+          }" width="70" style="border-radius:6px;margin-right:12px;"/>
+          <div style="font-size:14px;">
+              <div><strong>${i.product.name}</strong></div>
+              <div>Кол-во: ${i.qty}</div>
+              <div style="color:#5CB85C;">Цена: ${
+                i.product.discounted_price || i.product.price
+              } ₽</div>
+          </div>
+        </div>
+      `
+        )
+        .join("")}
+  
+      <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
+  
+      <h2 style="text-align:right;color:#5CB85C;">Итого: ${totalAmount} ₽</h2>
+  
+      <p style="text-align:center;color:#888;margin-top:25px;font-size:12px;">
+        Это автоматическое письмо. Пожалуйста, не отвечайте на него.
+      </p>
+    </div>
+  `;
+
+export const cashOrderTemplate = (
+  orderId: number,
+  checkout: any,
+  items: any[],
+  totalAmount: number
+) => `
+    <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
+      <h2 style="color:#5CB85C;text-align:center;">Ваш заказ №${orderId} оформлен!</h2>
+      <p style="font-size:15px;color:#333;text-align:center;">
+        Вы выбрали оплату наличными.  
+        Заберите заказ и оплатите его на месте.
+      </p>
+      <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
+  
+      <h3 style="color:#5CB85C">Информация:</h3>
+      <p><strong>Имя:</strong> ${checkout.name} ${checkout.surname}</p>
+      <p><strong>Email:</strong> ${checkout.email}</p>
+      <p><strong>Телефон:</strong> ${checkout.tel}</p>
+  
+      <h3 style="color:#5CB85C;margin-top:20px;">Товары:</h3>
+      ${items
+        .map(
+          (i) => `
+        <div style="display:flex;align-items:center;margin-bottom:15px;">
+          <img src="${
+            i.product.product_image
+          }" width="70" style="border-radius:6px;margin-right:12px;"/>
+          <div style="font-size:14px;">
+              <div><strong>${i.product.name}</strong></div>
+              <div>Кол-во: ${i.qty}</div>
+              <div style="color:#5CB85C;">Цена: ${
+                i.product.discounted_price || i.product.price
+              } ₽</div>
+          </div>
+        </div>
+      `
+        )
+        .join("")}
+  
+      <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
+      <h2 style="text-align:right;color:#5CB85C;">Итого: ${totalAmount} ₽</h2>
+    </div>
+  `;
