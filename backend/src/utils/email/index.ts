@@ -1,12 +1,31 @@
 import nodemailer from "nodemailer";
 
-export const mailer = nodemailer.createTransport({
-  host: "mail.hosting.reg.ru",
-  port: 465,
+// export const mailer = nodemailer.createTransport({
+//   host: "mail.hosting.reg.ru",
+//   port: 465,
+//   secure: true,
+//   tls: {
+//     minVersion: "TLSv1",
+//     rejectUnauthorized: false,
+//   },
+//   auth: {
+//     user: "noreply@kolesnicaauto.ru",
+//     pass: "2fd71823dF!",
+//   },
+// });
+
+export const mailer = nodemailer.createTransport<any>({
+  // @ts-ignore
+  host: `${process.env.MAIL_HOST || "localhost"}`,
+  port: process.env.MAIL_PORT,
   secure: true,
+  tls: {
+    minVersion: "TLSv1",
+    rejectUnauthorized: false,
+  },
   auth: {
-    user: "noreply@kolesnicaauto.ru",
-    pass: "2fd71823dF!",
+    user: process.env.MAIL_NOREPLY_USER,
+    pass: process.env.MAIL_NOREPLY_PASS,
   },
 });
 
@@ -19,7 +38,7 @@ export const orderReceiptTemplate = (
     <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
       
       <div style="text-align:center;">
-        <img src="https://kolesnicaauto.ru/logo.png" width="110" />
+        <img src="https://kolesnicaauto.ru/logo.svg" width="110" />
         <h2 style="color:#5CB85C;margin-bottom:5px;">Спасибо за ваш заказ!</h2>
         <p style="font-size:15px;color:#333;">Ваш чек по заказу №${orderId}</p>
       </div>
@@ -48,7 +67,7 @@ export const orderReceiptTemplate = (
           (i) => `
         <div style="display:flex;align-items:center;margin-bottom:15px;">
           <img src="${
-            i.product.product_image
+            i.product.productImage.medium
           }" width="70" style="border-radius:6px;margin-right:12px;"/>
           <div style="font-size:14px;">
               <div><strong>${i.product.name}</strong></div>
