@@ -1,20 +1,6 @@
 import nodemailer from "nodemailer";
 import { cleanPrice } from "..";
 
-// export const mailer = nodemailer.createTransport({
-//   host: "mail.hosting.reg.ru",
-//   port: 465,
-//   secure: true,
-//   tls: {
-//     minVersion: "TLSv1",
-//     rejectUnauthorized: false,
-//   },
-//   auth: {
-//     user: "noreply@kolesnicaauto.ru",
-//     pass: "2fd71823dF!",
-//   },
-// });
-
 export const mailer = nodemailer.createTransport<any>({
   // @ts-ignore
   host: `${process.env.MAIL_HOST || "localhost"}`,
@@ -30,6 +16,7 @@ export const mailer = nodemailer.createTransport<any>({
   },
 });
 
+
 export const orderReceiptTemplate = (
   orderId: number,
   checkout: any,
@@ -43,33 +30,31 @@ export const orderReceiptTemplate = (
         <h2 style="color:#5CB85C;margin-bottom:5px;">Спасибо за ваш заказ!</h2>
         <p style="font-size:15px;color:#333;">Ваш чек по заказу №${orderId}</p>
       </div>
-  
+
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
-  
+
       <h3 style="color:#5CB85C;margin-bottom:10px;">Информация о заказе</h3>
-  
+
       <p><strong>Имя:</strong> ${checkout.name} ${checkout.surname}</p>
       <p><strong>Email:</strong> ${checkout.email}</p>
       <p><strong>Телефон:</strong> ${checkout.tel}</p>
       <p><strong>Тип доставки:</strong> ${checkout.deliveryType}</p>
-  
+
       ${
         checkout.deliveryType === "replace_oil"
           ? `<p><strong>Время:</strong> ${checkout.timeFrom} - ${checkout.timeTo}</p>`
           : ""
       }
-  
+
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
-  
+
       <h3 style="color:#5CB85C">Товары:</h3>
-  
+
       ${items
         .map(
           (i) => `
         <div style="display:flex;align-items:center;margin-bottom:15px;">
-          <img src="${
-            i?.product?.product_image?.medium
-          }" width="70" style="border-radius:6px;margin-right:12px;"/>
+          <img src="${i?.product?.product_image?.medium}" width="70" style="border-radius:6px;margin-right:12px;"/>
           <div style="font-size:14px;">
               <div><strong>${i.product.name}</strong></div>
               <div>Кол-во: ${i.qty}</div>
@@ -81,16 +66,18 @@ export const orderReceiptTemplate = (
       `
         )
         .join("")}
-  
+
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
-  
-      <h2 style="text-align:right;color:#5CB85C;">Итого: ${cleanPrice(totalAmount as unknown as string)} ₽</h2>
-  
+
+      <h2 style="text-align:right;color:#5CB85C;">Итого: ${cleanPrice(
+        totalAmount as unknown as string
+      )} ₽</h2>
+
       <p style="text-align:center;color:#888;margin-top:25px;font-size:12px;">
         Это автоматическое письмо. Пожалуйста, не отвечайте на него.
       </p>
     </div>
-  `;
+`;
 
 export const cashOrderTemplate = (
   orderId: number,
@@ -99,29 +86,31 @@ export const cashOrderTemplate = (
   totalAmount: number
 ) => `
     <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
+      
       <div style="text-align:center;">
         <img src="https://kolesnicaauto.ru/logo2.png" width="110" />
         <h2 style="color:#5CB85C;text-align:center;">Ваш заказ №${orderId} оформлен!</h2>
       </div>
+
       <p style="font-size:15px;color:#333;text-align:center;">
         Вы выбрали оплату наличными.  
         Заберите заказ и оплатите его на месте.
       </p>
+
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
-  
+
       <h3 style="color:#5CB85C">Информация:</h3>
       <p><strong>Имя:</strong> ${checkout.name} ${checkout.surname}</p>
       <p><strong>Email:</strong> ${checkout.email}</p>
       <p><strong>Телефон:</strong> ${checkout.tel}</p>
-  
+
       <h3 style="color:#5CB85C;margin-top:20px;">Товары:</h3>
+
       ${items
         .map(
           (i) => `
         <div style="display:flex;align-items:center;margin-bottom:15px;">
-          <img src="${
-            i?.product?.product_image?.medium
-          }" width="70" style="border-radius:6px;margin-right:12px;"/>
+          <img src="${i?.product?.product_image?.medium}" width="70" style="border-radius:6px;margin-right:12px;"/>
           <div style="font-size:14px;">
               <div><strong>${i.product.name}</strong></div>
               <div>Кол-во: ${i.qty}</div>
@@ -134,8 +123,15 @@ export const cashOrderTemplate = (
       `
         )
         .join("")}
-  
+
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
-      <h2 style="text-align:right;color:#5CB85C;">Итого: ${cleanPrice(totalAmount as unknown as string)} ₽</h2>
+
+      <h2 style="text-align:right;color:#5CB85C;">Итого: ${cleanPrice(
+        totalAmount as unknown as string
+      )} ₽</h2>
+
+      <p style="text-align:center;color:#888;margin-top:25px;font-size:12px;">
+        Это автоматическое письмо. Пожалуйста, не отвечайте на него.
+      </p>
     </div>
-  `;
+`;
