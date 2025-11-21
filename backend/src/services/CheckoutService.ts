@@ -89,11 +89,9 @@ export class CheckoutService {
         return_url: returnUrl,
       },
   
-      // ❗️Сам чек
       receipt: {
         customer: {
           full_name: `${checkout.name} ${checkout.surname}`,
-          phone: checkout.tel,
           email: checkout.email,
         },
         items: items.map((item) => ({
