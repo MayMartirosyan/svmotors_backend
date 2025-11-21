@@ -11,7 +11,7 @@ const buildQrPayload = (payment: any, checkout: any) => {
     .split(".")[0]
     .replace("T", "T");
 
-  const s = checkout.totalAmount.toFixed(2);
+  const s = checkout?.totalAmount ? Number(checkout?.totalAmount) : 0;
   const fn = payment.receipt?.fiscal_storage_number || "";
   const fd = payment.receipt?.fiscal_document_number || "";
   const fp = payment.receipt?.fiscal_attribute || "";
@@ -54,7 +54,6 @@ export const generateReceiptPdf = async (
   });
 
   doc.moveDown();
-
 
   doc.fontSize(14).font("Helvetica-Bold");
   doc.text(`Итого: ${cleanPrice(checkout.totalAmount)} ₽`);
