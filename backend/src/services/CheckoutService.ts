@@ -61,21 +61,23 @@ export class CheckoutService {
   private async createYooKassaPayment(
     totalAmount: number,
     orderId: number,
-    description: string
+    description: string,
+    checkout: any,
+    items: any[],
   ) {
     const shopId = process.env.YKASSA_SHOP_ID?.trim();
     const secretKey = process.env.YKASSA_SECRET_KEY?.trim();
-
+  
     if (!shopId || !secretKey) {
       throw new Error("YooKassa credentials are not configured");
     }
-
+  
     const idempotenceKey = `${orderId}-${Date.now()}`;
     const returnUrl = `${
       process.env.YKASSA_RETURN_URL ||
       "https://kolesnicaauto.ru/order-confirmation"
     }?orderId=${orderId}`;
-
+  
     const body = {
       amount: {
         value: totalAmount.toFixed(2),
@@ -86,10 +88,31 @@ export class CheckoutService {
         type: "redirect",
         return_url: returnUrl,
       },
+  
+      // ❗️Сам чек
+      receipt: {
+        customer: {
+          full_name: `${checkout.name} ${checkout.surname}`,
+          phone: checkout.tel,
+          email: checkout.email,
+        },
+        items: items.map((item) => ({
+          description: item.product.name,
+          quantity: item.qty,
+          amount: {
+            value: (item.product.discounted_price || item.product.price).toFixed(2),
+            currency: "RUB",
+          },
+          vat_code: 1,
+          payment_mode: "full_payment",
+          payment_subject: "commodity",
+        })),
+      },
+  
       description,
       metadata: { orderId },
     };
-
+  
     try {
       const response = await axios.post(
         "https://api.yookassa.ru/v3/payments",
@@ -105,7 +128,7 @@ export class CheckoutService {
           },
         }
       );
-
+  
       return response.data;
     } catch (err: any) {
       console.error("YooKassa ERROR:", err.response?.data || err.message);
@@ -114,6 +137,7 @@ export class CheckoutService {
       );
     }
   }
+  
 
   private async getYooKassaPayment(paymentId: string) {
     const shopId = process.env.YKASSA_SHOP_ID?.trim();
@@ -244,10 +268,22 @@ export class CheckoutService {
 
     // === ОПЛАТА КАРТОЙ ===
     if (paymentMethod === "bankCard") {
+
+      const itemsWithProducts = await Promise.all(
+        cartItems.map(async (item: any) => {
+          const product = await this.productRepository.findOneBy({
+            id: item.productId,
+          });
+          return { ...item, product };
+        })
+      );
+      
       const payment = await this.createYooKassaPayment(
         totalAmount,
         savedOrder.orderId,
-        `Оплата заказа №${savedOrder.orderId}`
+        `Оплата заказа №${savedOrder.orderId}`,
+        checkout,
+        itemsWithProducts
       );
 
       paymentUrl = payment?.confirmation?.confirmation_url;
