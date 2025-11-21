@@ -1,92 +1,93 @@
 import PDFDocument from "pdfkit";
+import path from "path";
 import { cleanPrice } from "../index";
 import QRCode from "qrcode";
 
-const buildQrPayload = (payment: any, checkout: any) => {
-  const date = new Date(payment.created_at);
+function resolveFontPath(fontFile: string) {
+  if (process.env.NODE_ENV !== "production") {
+    return path.join(__dirname, "../../fonts", fontFile);
+  }
+  return path.join(__dirname, "../fonts", fontFile);
+}
 
-  const t = date
-    .toISOString()
-    .replace(/[-:]/g, "")
-    .split(".")[0]
-    .replace("T", "T");
+export async function generateReceiptPdf(payment: any, order: any, checkout: any, items: any[]) {
+  const doc = new PDFDocument({
+    margin: 40
+  });
 
-  const s = checkout?.totalAmount ? Number(checkout?.totalAmount) : 0;
-  const fn = payment.receipt?.fiscal_storage_number || "";
-  const fd = payment.receipt?.fiscal_document_number || "";
-  const fp = payment.receipt?.fiscal_attribute || "";
-
-  return `t=${t}&s=${s}&fn=${fn}&fd=${fd}&fp=${fp}&n=1`;
-};
-
-export const generateReceiptPdf = async (
-  payment: any,
-  order: any,
-  checkout: any,
-  items: any[]
-) => {
-  const doc = new PDFDocument();
   const buffers: any[] = [];
-
   doc.on("data", buffers.push.bind(buffers));
-  doc.on("end", () => {});
 
-  doc.fontSize(20).text("Кассовый чек", { align: "center" });
+  const FONT_BOOK = resolveFontPath("dejavu-sans.book.ttf");
+  const FONT_BOLD = resolveFontPath("dejavu-sans.bold.ttf");
+
+  const qrPayload = `t=${new Date(payment.created_at).toISOString().replace(/[-:]/g, "").slice(0, 15)}00&s=${(
+    checkout.totalAmount / 100
+  ).toFixed(2)}&fn=${payment.receipt?.fiscal_storage_number}&i=${
+    payment.receipt?.fiscal_document_number
+  }&fp=${payment.receipt?.fiscal_attribute}&n=1`;
+
+  const qrImage = await QRCode.toBuffer(qrPayload);
+
+  // ======= HEADER =======
+  doc.font(FONT_BOLD).fontSize(22).text("Кассовый чек", {
+    align: "center"
+  });
+
   doc.moveDown();
 
-  doc.fontSize(12).text(`Заказ №${order.orderId}`);
+  // ======= ORDER INFO =======
+  doc.font(FONT_BOOK).fontSize(14);
+
+  doc.text(`Заказ №${order.orderId}`);
   doc.text(`Дата: ${new Date(payment.created_at).toLocaleString("ru-RU")}`);
   doc.text(`Имя: ${checkout.name} ${checkout.surname}`);
   doc.text(`Email: ${checkout.email}`);
   doc.text(`Телефон: ${checkout.tel}`);
 
-  doc.moveDown();
+  doc.moveDown(1.2);
 
-  doc.fontSize(14).text("Товары:", { underline: true });
-  doc.moveDown(0.5);
+  // ======= ITEMS =======
+  doc.font(FONT_BOLD).fontSize(16).text("Товары:", { underline: true });
+  doc.font(FONT_BOOK).fontSize(14);
 
   items.forEach((item) => {
-    const price = item.product.discounted_price || item.product.price;
-
-    doc
-      .fontSize(12)
-      .text(`${item.product.name} — ${item.qty} шт × ${cleanPrice(price)} ₽`);
+    doc.text(
+      `${item.product.name}\n${item.qty} × ${cleanPrice(
+        item.product.discounted_price || item.product.price
+      )} ₽`,
+      {
+        indent: 10
+      }
+    );
+    doc.moveDown(0.5);
   });
 
   doc.moveDown();
 
-  doc.fontSize(14).font("Helvetica-Bold");
-  doc.text(`Итого: ${cleanPrice(checkout.totalAmount)} ₽`);
-  doc.font("Helvetica");
-
-  doc.moveDown();
-
-  doc.fontSize(12).text("Фискальные данные:", { underline: true });
-  doc.text(`ФД №: ${payment.receipt?.fiscal_document_number || "—"}`);
-  doc.text(`ФП: ${payment.receipt?.fiscal_attribute || "—"}`);
-  doc.text(`ФН: ${payment.receipt?.fiscal_storage_number || "—"}`);
-  doc.text(
-    `Статус регистрации: ${payment.receipt?.receipt_registration || "—"}`
-  );
+  // ======= TOTAL =======
+  doc.font(FONT_BOLD).fontSize(18).text(`Итого: ${cleanPrice(checkout.totalAmount)} ₽`, {
+    align: "right"
+  });
 
   doc.moveDown(1.5);
 
-  const qrPayload = buildQrPayload(payment, checkout);
+  // ======= FISCAL DATA + QR ROW =======
+  const yStart = doc.y;
 
-  const qrImage = await QRCode.toDataURL(qrPayload, {
-    margin: 1,
-    scale: 6,
-  });
+  // LEFT COLUMN — FISCAL
+  doc.font(FONT_BOLD).fontSize(16).text("Фискальные данные:");
+  doc.font(FONT_BOOK).fontSize(13);
 
-  doc.text("QR-код для проверки чека в ФНС:", { align: "center" });
-  doc.moveDown(0.5);
+  doc.text(`ФД №: ${payment.receipt?.fiscal_document_number || "—"}`);
+  doc.text(`ФП: ${payment.receipt?.fiscal_attribute || "—"}`);
+  doc.text(`ФН: ${payment.receipt?.fiscal_storage_number || "—"}`);
+  doc.text(`Статус: ${payment.receipt?.receipt_registration || "—"}`);
 
-  const qr = qrImage.replace(/^data:image\/png;base64,/, "");
-  doc.image(Buffer.from(qr, "base64"), {
-    align: "center",
-    width: 180,
-    height: 180,
-    fit: [180, 180],
+  // RIGHT COLUMN — QR
+  doc.image(qrImage, doc.page.width - 40 - 160, yStart, {
+    width: 160,
+    height: 160
   });
 
   doc.end();
@@ -94,4 +95,4 @@ export const generateReceiptPdf = async (
   return new Promise<Buffer>((resolve) => {
     doc.on("end", () => resolve(Buffer.concat(buffers)));
   });
-};
+}
