@@ -6,7 +6,12 @@ import { Product } from "../entities/Product";
 import * as jwt from "jsonwebtoken";
 import { Not, ILike } from "typeorm";
 import axios from "axios";
-import { cashOrderTemplate, mailer, orderReceiptTemplate } from "../utils/email";
+import {
+  cashOrderTemplate,
+  mailer,
+  orderReceiptTemplate,
+} from "../utils/email";
+import { generateReceiptPdf } from "../utils/email/recepitPdf";
 
 export class CheckoutService {
   private checkoutRepository = AppDataSource.getRepository(Checkout);
@@ -340,6 +345,13 @@ export class CheckoutService {
             })
           );
 
+          const pdfBuffer = await generateReceiptPdf(
+            yookassaPayment,
+            order,
+            checkout,
+            itemsWithProducts
+          );
+
           await mailer.sendMail({
             from: `"Kolesnica Auto" <noreply@kolesnicaauto.ru>`,
             to: checkout.email,
@@ -350,6 +362,13 @@ export class CheckoutService {
               itemsWithProducts,
               checkout.totalAmount
             ),
+            attachments: [
+              {
+                filename: `receipt_${order.orderId}.pdf`,
+                content: pdfBuffer,
+                contentType: "application/pdf",
+              },
+            ],
           });
 
           console.log("Email receipt sent to:", checkout.email);

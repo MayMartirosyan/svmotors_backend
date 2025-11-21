@@ -17,6 +17,9 @@ export const mailer = nodemailer.createTransport<any>({
 });
 
 
+
+
+
 export const orderReceiptTemplate = (
   orderId: number,
   checkout: any,
