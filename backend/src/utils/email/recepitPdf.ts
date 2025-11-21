@@ -4,15 +4,17 @@ import { cleanPrice } from "../index";
 import QRCode from "qrcode";
 
 function resolveFontPath(fontFile: string) {
-  if (process.env.NODE_ENV !== "production") {
-    return path.join(__dirname, "../../fonts", fontFile);
-  }
   return path.join(__dirname, "../fonts", fontFile);
 }
 
-export async function generateReceiptPdf(payment: any, order: any, checkout: any, items: any[]) {
+export async function generateReceiptPdf(
+  payment: any,
+  order: any,
+  checkout: any,
+  items: any[]
+) {
   const doc = new PDFDocument({
-    margin: 40
+    margin: 40,
   });
 
   const buffers: any[] = [];
@@ -21,17 +23,20 @@ export async function generateReceiptPdf(payment: any, order: any, checkout: any
   const FONT_BOOK = resolveFontPath("dejavu-sans.book.ttf");
   const FONT_BOLD = resolveFontPath("dejavu-sans.bold.ttf");
 
-  const qrPayload = `t=${new Date(payment.created_at).toISOString().replace(/[-:]/g, "").slice(0, 15)}00&s=${(
-    checkout.totalAmount / 100
-  ).toFixed(2)}&fn=${payment.receipt?.fiscal_storage_number}&i=${
-    payment.receipt?.fiscal_document_number
-  }&fp=${payment.receipt?.fiscal_attribute}&n=1`;
+  const qrPayload = `t=${new Date(payment.created_at)
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .slice(0, 15)}00&s=${(checkout.totalAmount / 100).toFixed(2)}&fn=${
+    payment.receipt?.fiscal_storage_number
+  }&i=${payment.receipt?.fiscal_document_number}&fp=${
+    payment.receipt?.fiscal_attribute
+  }&n=1`;
 
   const qrImage = await QRCode.toBuffer(qrPayload);
 
   // ======= HEADER =======
   doc.font(FONT_BOLD).fontSize(22).text("Кассовый чек", {
-    align: "center"
+    align: "center",
   });
 
   doc.moveDown();
@@ -57,7 +62,7 @@ export async function generateReceiptPdf(payment: any, order: any, checkout: any
         item.product.discounted_price || item.product.price
       )} ₽`,
       {
-        indent: 10
+        indent: 10,
       }
     );
     doc.moveDown(0.5);
@@ -66,9 +71,12 @@ export async function generateReceiptPdf(payment: any, order: any, checkout: any
   doc.moveDown();
 
   // ======= TOTAL =======
-  doc.font(FONT_BOLD).fontSize(18).text(`Итого: ${cleanPrice(checkout.totalAmount)} ₽`, {
-    align: "right"
-  });
+  doc
+    .font(FONT_BOLD)
+    .fontSize(18)
+    .text(`Итого: ${cleanPrice(checkout.totalAmount)} ₽`, {
+      align: "right",
+    });
 
   doc.moveDown(1.5);
 
@@ -87,7 +95,7 @@ export async function generateReceiptPdf(payment: any, order: any, checkout: any
   // RIGHT COLUMN — QR
   doc.image(qrImage, doc.page.width - 40 - 160, yStart, {
     width: 160,
-    height: 160
+    height: 160,
   });
 
   doc.end();

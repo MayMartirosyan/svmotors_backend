@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node copy-fonts.js",
     "start": "node dist/app.js",
     "dev": "nodemon --exec ts-node src/app.ts"
   },
