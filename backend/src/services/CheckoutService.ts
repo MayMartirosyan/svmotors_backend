@@ -220,7 +220,7 @@ export class CheckoutService {
         );
 
         await mailer.sendMail({
-          from: "noreply@kolesnicaauto.ru",
+          from: `"Kolesnica Auto" <noreply@kolesnicaauto.ru>`,
           to: email,
           subject: `Заказ №${savedOrder.orderId} — оплата наличными`,
           html: cashOrderTemplate(
@@ -341,7 +341,7 @@ export class CheckoutService {
           );
 
           await mailer.sendMail({
-            from: "noreply@kolesnicaauto.ru",
+            from: `"Kolesnica Auto" <noreply@kolesnicaauto.ru>`,
             to: checkout.email,
             subject: `Чек по заказу №${order.orderId}`,
             html: orderReceiptTemplate(
