@@ -4,7 +4,7 @@ import { cleanPrice } from "../index";
 import QRCode from "qrcode";
 
 function resolveFontPath(fontFile: string) {
-  return path.join(__dirname, "../fonts", fontFile);
+  return path.join(__dirname, "fonts", fontFile);
 }
 
 export async function generateReceiptPdf(

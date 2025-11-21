@@ -1,18 +1,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const srcDir = path.join(__dirname, "src", "fonts");
-const distDir = path.join(__dirname, "dist", "fonts");
+const src = path.join(__dirname, "src/utils/email/fonts");
+const dest = path.join(__dirname, "dist/utils/email/fonts");
 
-if (!fs.existsSync(distDir)) {
-  fs.mkdirSync(distDir, { recursive: true });
-}
+fs.mkdirSync(dest, { recursive: true });
 
-fs.readdirSync(srcDir).forEach((file) => {
-  const srcPath = path.join(srcDir, file);
-  const distPath = path.join(distDir, file);
-  fs.copyFileSync(srcPath, distPath);
-  console.log(`Copied: ${file}`);
+fs.readdirSync(src).forEach((f) => {
+  fs.copyFileSync(path.join(src, f), path.join(dest, f));
+  console.log("Copied font:", f);
 });
 
 console.log("Fonts copied successfully!");
