@@ -16,9 +16,17 @@ export const mailer = nodemailer.createTransport<any>({
   },
 });
 
+type TTRANSLATE_WORDS = {
+  [key: string]: string;
+};
 
-
-
+export const TRANSLATE_WORDS: TTRANSLATE_WORDS = {
+  replaceOil: "Замена масла",
+  pickup: "Самовывоз",
+  approved: "Одобрен",
+  pending: "Ожидает оплаты",
+  rejected: "Отклонён",
+};
 
 export const orderReceiptTemplate = (
   orderId: number,
@@ -41,7 +49,9 @@ export const orderReceiptTemplate = (
       <p><strong>Имя:</strong> ${checkout.name} ${checkout.surname}</p>
       <p><strong>Email:</strong> ${checkout.email}</p>
       <p><strong>Телефон:</strong> ${checkout.tel}</p>
-      <p><strong>Тип доставки:</strong> ${checkout.deliveryType}</p>
+      <p><strong>Тип доставки:</strong> ${
+        TRANSLATE_WORDS[checkout?.deliveryType] || "N/A"
+      }</p>
 
       ${
         checkout.deliveryType === "replace_oil"
@@ -57,12 +67,15 @@ export const orderReceiptTemplate = (
         .map(
           (i) => `
         <div style="display:flex;align-items:center;margin-bottom:15px;">
-          <img src="${i?.product?.product_image?.medium}" width="70" style="border-radius:6px;margin-right:12px;"/>
+          <img src="${
+            i?.product?.product_image?.medium
+          }" width="70" style="border-radius:6px;margin-right:12px;"/>
           <div style="font-size:14px;">
               <div><strong>${i.product.name}</strong></div>
               <div>Кол-во: ${i.qty}</div>
               <div style="color:#5CB85C;">Цена: ${
-                cleanPrice(i?.product?.discounted_price) || cleanPrice(i?.product?.price)
+                cleanPrice(i?.product?.discounted_price) ||
+                cleanPrice(i?.product?.price)
               } ₽</div>
           </div>
         </div>
@@ -103,7 +116,9 @@ export const cashOrderTemplate = (
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
 
       <h3 style="color:#5CB85C">Информация:</h3>
-      <p> margin-top:12px; <strong>Имя:</strong> ${checkout.name} ${checkout.surname}</p>
+      <p> margin-top:12px; <strong>Имя:</strong> ${checkout.name} ${
+  checkout.surname
+}</p>
       <p> margin-top:12px; <strong>Email:</strong> ${checkout.email}</p>
       <p> margin-top:12px; <strong>Телефон:</strong> ${checkout.tel}</p>
 
@@ -113,7 +128,9 @@ export const cashOrderTemplate = (
         .map(
           (i) => `
         <div style="display:flex;align-items:center;margin-bottom:15px;">
-          <img src="${i?.product?.product_image?.medium}" width="70" style="border-radius:6px;margin-right:12px;"/>
+          <img src="${
+            i?.product?.product_image?.medium
+          }" width="70" style="border-radius:6px;margin-right:12px;"/>
           <div style="font-size:14px;">
               <div><strong>${i.product.name}</strong></div>
               <div>Кол-во: ${i.qty}</div>
