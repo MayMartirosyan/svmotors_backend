@@ -23,15 +23,6 @@ export async function generateReceiptPdf(
   const FONT_BOOK = resolveFontPath("dejavu-sans.book.ttf");
   const FONT_BOLD = resolveFontPath("dejavu-sans.bold.ttf");
 
-//   const qrPayload = `t=${new Date(payment.created_at)
-//     .toISOString()
-//     .replace(/[-:]/g, "")
-//     .slice(0, 15)}00&s=${(checkout.totalAmount / 100).toFixed(2)}&fn=${
-//     payment.receipt?.fiscal_storage_number
-//   }&i=${payment.receipt?.fiscal_document_number}&fp=${
-//     payment.receipt?.fiscal_attribute
-//   }&n=1`;
-
   const qrPayload = [
     `t=${new Date(payment.created_at).toISOString().replace(/[-:]/g, "").slice(0, 15)}00`,
     `s=${Number(checkout.totalAmount)}`,
@@ -89,10 +80,8 @@ export async function generateReceiptPdf(
 
   doc.moveDown(1.5);
 
-  // ======= FISCAL DATA + QR ROW =======
   const yStart = doc.y;
 
-  // LEFT COLUMN — FISCAL
   doc.font(FONT_BOLD).fontSize(16).text("Фискальные данные:");
   doc.font(FONT_BOOK).fontSize(13);
 

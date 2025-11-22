@@ -3,15 +3,9 @@ import { Checkout } from "../entities/Checkout";
 import { User } from "../entities/User";
 import { Order } from "../entities/Order";
 import { Product } from "../entities/Product";
-import * as jwt from "jsonwebtoken";
-import { Not, ILike } from "typeorm";
+import * as jwt from "jsonwebtoken";;
 import axios from "axios";
-import {
-  cashOrderTemplate,
-  mailer,
-  orderReceiptTemplate,
-} from "../utils/email";
-import { generateReceiptPdf } from "../utils/email/recepitPdf";
+import { cashOrderTemplate, mailer, orderReceiptTemplate } from "../utils/email";
 
 export class CheckoutService {
   private checkoutRepository = AppDataSource.getRepository(Checkout);
@@ -61,23 +55,21 @@ export class CheckoutService {
   private async createYooKassaPayment(
     totalAmount: number,
     orderId: number,
-    description: string,
-    checkout: any,
-    items: any[],
+    description: string
   ) {
     const shopId = process.env.YKASSA_SHOP_ID?.trim();
     const secretKey = process.env.YKASSA_SECRET_KEY?.trim();
-  
+
     if (!shopId || !secretKey) {
       throw new Error("YooKassa credentials are not configured");
     }
-  
+
     const idempotenceKey = `${orderId}-${Date.now()}`;
     const returnUrl = `${
       process.env.YKASSA_RETURN_URL ||
       "https://kolesnicaauto.ru/order-confirmation"
     }?orderId=${orderId}`;
-  
+
     const body = {
       amount: {
         value: totalAmount.toFixed(2),
@@ -88,29 +80,10 @@ export class CheckoutService {
         type: "redirect",
         return_url: returnUrl,
       },
-  
-      receipt: {
-        customer: {
-          full_name: `${checkout.name} ${checkout.surname}`,
-          email: checkout.email,
-        },
-        items: items.map((item) => ({
-          description: item.product.name,
-          quantity: item.qty,
-          amount: {
-            value: Number(item?.product?.discounted_price) || Number(item?.product?.price),
-            currency: "RUB",
-          },
-          vat_code: 1,
-          payment_mode: "full_payment",
-          payment_subject: "commodity",
-        })),
-      },
-  
       description,
       metadata: { orderId },
     };
-  
+
     try {
       const response = await axios.post(
         "https://api.yookassa.ru/v3/payments",
@@ -126,7 +99,7 @@ export class CheckoutService {
           },
         }
       );
-  
+
       return response.data;
     } catch (err: any) {
       console.error("YooKassa ERROR:", err.response?.data || err.message);
@@ -135,7 +108,6 @@ export class CheckoutService {
       );
     }
   }
-  
 
   private async getYooKassaPayment(paymentId: string) {
     const shopId = process.env.YKASSA_SHOP_ID?.trim();
@@ -266,22 +238,10 @@ export class CheckoutService {
 
     // === ОПЛАТА КАРТОЙ ===
     if (paymentMethod === "bankCard") {
-
-      const itemsWithProducts = await Promise.all(
-        cartItems.map(async (item: any) => {
-          const product = await this.productRepository.findOneBy({
-            id: item.productId,
-          });
-          return { ...item, product };
-        })
-      );
-
       const payment = await this.createYooKassaPayment(
         totalAmount,
         savedOrder.orderId,
-        `Оплата заказа №${savedOrder.orderId}`,
-        checkout,
-        itemsWithProducts
+        `Оплата заказа №${savedOrder.orderId}`
       );
 
       paymentUrl = payment?.confirmation?.confirmation_url;
@@ -379,13 +339,6 @@ export class CheckoutService {
             })
           );
 
-          const pdfBuffer = await generateReceiptPdf(
-            yookassaPayment,
-            order,
-            checkout,
-            itemsWithProducts
-          );
-
           await mailer.sendMail({
             from: `"Kolesnica Auto" <noreply@kolesnicaauto.ru>`,
             to: checkout.email,
@@ -396,13 +349,6 @@ export class CheckoutService {
               itemsWithProducts,
               checkout.totalAmount
             ),
-            attachments: [
-              {
-                filename: `receipt_${order.orderId}.pdf`,
-                content: pdfBuffer,
-                contentType: "application/pdf",
-              },
-            ],
           });
 
           console.log("Email receipt sent to:", checkout.email);
