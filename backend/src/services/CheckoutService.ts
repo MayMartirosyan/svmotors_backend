@@ -93,7 +93,7 @@ export class CheckoutService {
           description: item.product.name,
           quantity: item.qty,
           amount: {
-            value: (item.product.discounted_price || item.product.price).toFixed(2),
+            value: Number(item.product.discounted_price) || Number(item.product.price),
             currency: "RUB",
           },
           vat_code: 1,
