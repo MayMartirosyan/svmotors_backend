@@ -86,7 +86,6 @@ export class CheckoutService {
       receipt: {
         customer: {
           full_name: `${checkout.name} ${checkout.surname}`,
-          phone: checkout.tel,
           email: checkout.email,
         },
         items: items.map((item) => ({
