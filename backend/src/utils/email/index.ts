@@ -34,7 +34,7 @@ export const orderReceiptTemplate = (
   items: any[],
   totalAmount: number
 ) => `
-    <div style="max-width:600px;margin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
+    <div style="max-width:600px;mаargin:0 auto;font-family:Arial;background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:25px;">
       
       <div style="text-align:center;">
         <img src="https://kolesnicaauto.ru/logo2.png" width="110" />
@@ -133,8 +133,8 @@ export const cashOrderTemplate = (
               <div><strong>${i.product.name}</strong></div>
               <div>Кол-во: ${i.qty}</div>
               <div style="color:#5CB85C;">Цена: ${
-                cleanPrice(i.product.discounted_price) ||
-                cleanPrice(i.product.price)
+                cleanPrice(i?.product?.discounted_price) ||
+                cleanPrice(i?.product?.price)
               } ₽.</div>
           </div>
         </div>

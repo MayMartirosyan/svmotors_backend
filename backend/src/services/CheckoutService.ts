@@ -66,6 +66,9 @@ export class CheckoutService {
       throw new Error("YooKassa credentials are not configured");
     }
 
+    console.log(checkout.tel.replace(/\D/g, "").replace(/^8/, "7").replace(/^7/, "+7"));
+    
+
     const idempotenceKey = `${orderId}-${Date.now()}`;
     const returnUrl = `${
       process.env.YKASSA_RETURN_URL ||
@@ -74,7 +77,7 @@ export class CheckoutService {
 
     const body = {
       amount: {
-        value: totalAmount.toFixed(2),
+        value: Number(totalAmount),
         currency: "RUB",
       },
       capture: true,
@@ -87,6 +90,7 @@ export class CheckoutService {
         customer: {
           full_name: `${checkout.name} ${checkout.surname}`,
           email: checkout.email,
+          phone: checkout?.tel?.replace(/\D/g, "").replace(/^8/, "7").replace(/^7/, "+7")
         },
         items: items.map((item) => ({
           description: item.product.name,
