@@ -116,9 +116,7 @@ export const cashOrderTemplate = (
       <hr style="border:none;border-top:1px solid #eaeaea;margin:20px 0;"/>
 
       <h3 style="color:#5CB85C">Информация:</h3>
-      <p>  <strong>Имя:</strong> ${checkout.name} ${
-  checkout.surname
-}</p>
+      <p>  <strong>Имя:</strong> ${checkout.name} ${checkout.surname}</p>
       <p>  <strong>Email:</strong> ${checkout.email}</p>
       <p>  <strong>Телефон:</strong> ${checkout.tel}</p>
 
@@ -137,7 +135,7 @@ export const cashOrderTemplate = (
               <div style="color:#5CB85C;">Цена: ${
                 cleanPrice(i.product.discounted_price) ||
                 cleanPrice(i.product.price)
-              } Руб.</div>
+              } ₽.</div>
           </div>
         </div>
       `
@@ -148,7 +146,7 @@ export const cashOrderTemplate = (
 
       <h2 style="text-align:right;color:#5CB85C;">Итого: ${cleanPrice(
         totalAmount as unknown as string
-      )} Руб.</h2>
+      )} ₽.</h2>
 
       <p style="text-align:center;color:#888;margin-top:25px;font-size:12px;">
         Это автоматическое письмо. Пожалуйста, не отвечайте на него.
