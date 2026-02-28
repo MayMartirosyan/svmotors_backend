@@ -11,6 +11,7 @@ const SIDEBAR_LINKS = [
   { to: "/admin/brands", label: "Бренды" },
   { to: "/admin/requests", label: "Звявки" },
   { to: "/admin/orders", label: "Заказы" },
+  { to: "/admin/clients", label: "База Клиентов" },
 ];
 
 const linkClasses =

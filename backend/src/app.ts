@@ -13,7 +13,9 @@ import productRoutes from "./routes/product";
 import brandRoutes from "./routes/brand";
 import requestRoutes from "./routes/request";
 import checkoutRoutes from "./routes/checkout";
+import clientRoutes from "./routes/client";
 import homeRoutes from "./routes/home/home";
+
 
 dotenv.config();
 
@@ -40,6 +42,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/brands", brandRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/checkout", checkoutRoutes);
+app.use("/api/clients", clientRoutes);
 
 
 

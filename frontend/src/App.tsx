@@ -20,6 +20,8 @@ import BrandForm from "./pages/Brands/BrandForm";
 import Requests from "./pages/Requests/Requests";
 import Orders from "./pages/Orders/Orders";
 import OrderDetail from "./pages/Orders/OrderDetail";
+import Clients from "./pages/Clients/Clients";
+import ClientForm from "./pages/Clients/ClientForm";
 
 const App: React.FC = () => {
   return (
@@ -50,6 +52,9 @@ const App: React.FC = () => {
           <Route path="users" element={<Users />} />
           <Route path="orders" element={<Orders />} />
           <Route path="orders/:orderId" element={<OrderDetail />} />
+          <Route path="clients" element={<Clients />} />
+          <Route path="clients/create" element={<ClientForm />} />
+          <Route path="clients/edit/:id" element={<ClientForm />} />
         </Route>
       </Routes>
     </Router>
