@@ -5,12 +5,12 @@ import fs from "fs";
 import path from "path";
 
 const s3 = new S3Client({
-  region: process.env.AWS_REGION,
+  region: process.env.SEL_REGION,
   endpoint: process.env.S3_ENDPOINT,
   forcePathStyle: true,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: process.env.SEL_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.SEL_SECRET_ACCESS_KEY!,
   },
 });
 
