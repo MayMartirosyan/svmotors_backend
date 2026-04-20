@@ -16,7 +16,6 @@ import checkoutRoutes from "./routes/checkout";
 import clientRoutes from "./routes/client";
 import homeRoutes from "./routes/home/home";
 
-
 dotenv.config();
 
 const app = express();
@@ -32,7 +31,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/Uploads", express.static(uploadDir));
 app.use(express.static(path.join(__dirname, "../../frontend/dist")));
 
-
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/home-data", homeRoutes);
@@ -43,8 +41,6 @@ app.use("/api/brands", brandRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/checkout", checkoutRoutes);
 app.use("/api/clients", clientRoutes);
-
-
 
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../../frontend/dist", "index.html"));
@@ -58,8 +54,11 @@ if (!process.env.NODE_ENV) {
 AppDataSource.initialize()
   .then(() => {
     console.log("Connected to PostgreSQL");
-    const port = process.env.SERVER_PORT || 8000;
-    app.listen(port, () => {
+    const port = process.env.SERVER_PORT
+      ? Number(process.env.SERVER_PORT)
+      : 8000;
+      
+    app.listen(port, "127.0.0.1", () => {
       console.log(`Server running on http://localhost:${port}`);
     });
   })

@@ -125,7 +125,7 @@ const SliderForm: React.FC = () => {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
             label="Заголовок"
-            {...register("sliderTitle", { required: "Заголовок обязателен" })}
+            {...register("sliderTitle")}
             error={errors.sliderTitle?.message}
           />
 
