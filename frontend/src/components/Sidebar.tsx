@@ -37,7 +37,7 @@ const Sidebar: React.FC = () => {
   return (
     <aside className="w-64 bg-[#1E293B] text-white p-4 border-r border-[#E5E7EB] flex flex-col">
       <header className="mb-6">
-        <h2 className="text-xl font-serif">Kas Auto</h2>
+        <h2 className="text-xl font-serif">Колесница Авто</h2>
       </header>
 
       <nav aria-label="Sidebar Navigation" className="flex-1">

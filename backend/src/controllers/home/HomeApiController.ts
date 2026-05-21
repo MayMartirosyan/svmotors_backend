@@ -29,7 +29,7 @@ export class HomeApiController {
         this.sliderService.getAllSliders(),
         this.productService.getNewProducts(10),
         this.productService.getRecommendedProducts(12),
-        this.brandService.getAllBrands(10),
+        this.brandService.getAllBrands(24),
       ]);
 
       const camelCaseSliders = sliders.map((slider: any) => toCamelCase(slider));
