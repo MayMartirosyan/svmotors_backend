@@ -21,7 +21,7 @@ export class BrandController {
 
   async getAllBrands(req: Request, res: Response) {
     try {
-      const { limit = "10" } = req.query;
+      const { limit = "24" } = req.query;
       const parsedLimit = parseInt(limit as string);
       const brands = await this.brandService.getAllBrands(parsedLimit);
       const camelCaseBrands = brands.map((brand) => toCamelCase(brand));
