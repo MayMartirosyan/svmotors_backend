@@ -81,9 +81,7 @@ export class ProductController {
         maxPrice ? parseFloat(maxPrice as string) : undefined
       );
 
-      const camelCaseProducts = result.products.map((p) =>
-        toCamelCase(p)
-      );
+      const camelCaseProducts = result.products.map((p) => toCamelCase(p));
 
       res.json({
         products: camelCaseProducts,
@@ -129,6 +127,8 @@ export class ProductController {
         isNew,
         isRecommended,
         categoryId,
+        sku,
+        article,
         description,
         shortDescription,
       } = req.body;
@@ -152,6 +152,8 @@ export class ProductController {
         is_recommended: isRecommended === "true",
         category_id: parseInt(categoryId),
         description,
+        sku,
+        article,
         short_description: shortDescription,
         product_image: getImagePath(req),
       };
