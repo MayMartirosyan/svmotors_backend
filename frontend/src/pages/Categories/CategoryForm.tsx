@@ -27,64 +27,92 @@ const CategoryForm: React.FC = () => {
   const [initialImageObject, setInitialImageObject] = useState<any | null>(null);
   const [initialPreview, setInitialPreview] = useState<string | null>(null);
 
-  const [parentCategories, setParentCategories] = useState<any[]>([]);
+  const [parentOptions, setParentOptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const loadCategory = async () => {
-      if (!id) return;
-      setIsLoading(true);
+    loadData();
+  }, [id]);
 
-      try {
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const { data: treeCategories } = await axios.get(`${BASE_URL}/api/categories`);
+
+      let currentCategory: any = null;
+      const excludedIds = new Set<number>();
+
+      if (id) {
         const { data } = await axios.get(`${BASE_URL}/api/categories/category/${id}`);
+        currentCategory = data;
 
         setValue("name", data.name);
         setValue("parentId", data.parent?.id || null);
 
         if (data.categoryImage) {
           const img = data.categoryImage;
-
           setInitialImageObject(img);
-          setInitialPreview(
-            img.medium ||
-              img.original ||
-              img.large ||
-              img.small ||
-              img.thumb ||
-              null
-          );
+          setInitialPreview(img.medium || img.original || img.large || img.small || img.thumb || null);
         }
-      } catch (err) {
-        console.error(err);
-        toast.error("Ошибка загрузки категории");
-      } finally {
-        setIsLoading(false);
+
+        collectDescendantIds(data, excludedIds);
       }
+
+
+      const options = buildParentOptions(treeCategories, excludedIds, currentCategory?.id);
+      setParentOptions(options);
+
+    } catch (err) {
+      console.error(err);
+      toast.error("Ошибка загрузки категорий");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  const collectDescendantIds = (category: any, excludedIds: Set<number>) => {
+    excludedIds.add(category.id);
+    if (category.children?.length) {
+      category.children.forEach((child: any) => {
+        collectDescendantIds(child, excludedIds);
+      });
+    }
+  };
+
+
+  const buildParentOptions = (categories: any[], excludedIds: Set<number>, currentId?: number) => {
+    const options: any[] = [{ value: "", label: "Без родителя (корневая категория)" }];
+
+    const traverse = (cats: any[], depth: number = 0) => {
+      cats.forEach((cat) => {
+        if (cat.id === currentId) return; 
+
+        const isExcluded = excludedIds.has(cat.id);
+        
+        options.push({
+          value: cat.id.toString(),
+          label: "   ".repeat(depth) + "↳ " + cat.name,
+          disabled: isExcluded,
+        });
+
+        if (cat.children?.length) {
+          traverse(cat.children, depth + 1);
+        }
+      });
     };
 
-    const loadParentCategories = async () => {
-      try {
-        const { data } = await axios.get(`${BASE_URL}/api/categories`);
-        const filtered = data.filter((cat: any) => cat.id !== parseInt(id || "0"));
-        setParentCategories(filtered);
-      } catch (err) {
-        console.error(err);
-        toast.error("Ошибка загрузки родительских категорий");
-      }
-    };
-
-    loadCategory();
-    loadParentCategories();
-  }, [id, setValue]);
+    traverse(categories);
+    return options;
+  };
 
   const onSubmit = async (form: FormValues) => {
     setIsLoading(true);
-
     try {
       const formData = new FormData();
       formData.append("name", form.name);
 
-      if (form.parentId) {
+      if (form.parentId !== null && form.parentId !== undefined) {
         formData.append("parentId", form.parentId.toString());
       }
 
@@ -92,14 +120,12 @@ const CategoryForm: React.FC = () => {
         formData.append("category_image", imageFile);
       } else if (initialImageObject) {
         formData.append("category_image", JSON.stringify(initialImageObject));
-      } else {
-        formData.append("category_image", "");
       }
 
       const method = id ? "put" : "post";
       const endpoint = id
         ? `${BASE_URL}/api/categories/category/${id}`
-        : `${BASE_URL}/api/categories/category`;
+        : `${BASE_URL}/api/categories/category/`;
 
       await axios[method](endpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -107,9 +133,9 @@ const CategoryForm: React.FC = () => {
 
       toast.success(`Категория успешно ${id ? "обновлена" : "создана"}`);
       navigate("/admin/categories");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error(`Не удалось ${id ? "обновить" : "создать"} категорию`);
+      toast.error(err.response?.data?.error || `Не удалось ${id ? "обновить" : "создать"} категорию`);
     } finally {
       setIsLoading(false);
     }
@@ -132,15 +158,12 @@ const CategoryForm: React.FC = () => {
 
           <Select
             label="Родительская категория"
-            {...register("parentId")}
-            options={parentCategories.map((cat) => ({
-              value: cat.id,
-              label: cat.name,
-            }))}
+            options={parentOptions}
             value={watch("parentId")?.toString() || ""}
-            onChange={(e) =>
-              setValue("parentId", e.target.value ? parseInt(e.target.value) : null)
-            }
+            onChange={(e) => {
+              const val = e.target.value;
+              setValue("parentId", val ? parseInt(val) : null);
+            }}
           />
 
           <ImageUpload
